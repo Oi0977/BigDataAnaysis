@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend/dist:/usr/share/nginx/html
+    depends_on:
+      - backend
+    networks:
+      - bigdata-net
+
+  # 后端服务
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - kafka
+      - spark-master
+      - hbase-master
+      - elasticsearch
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPARK_MASTER=spark://spark-master:7077
+      - HBASE_ZOOKEEPER_QUORUM=hbase-master
+      - ELASTICSEARCH_HOST=elasticsearch:9200
+    networks:
+      - bigdata-net
+
+  # Kafka (KRaft模式)
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - bigdata-net
+
+  # Spark Master
+  spark-master:
+    image: bitnami/spark:3.5
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    environment:
+      - SPARK_MODE=master
+    networks:
+      - bigdata-net
+
+  # Spark Worker
+  spark-worker:
+    image: bitnami/spark:3.5
+    ports:
+      - "8081:8081"
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    depends_on:
+      - spark-master
+    networks:
+      - bigdata-net
+
+  # HDFS NameNode
+  hdfs-namenode:
+    image: bde/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    environment:
+      - CLUSTER_NAME=test
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    networks:
+      - bigdata-net
+
+  # HDFS DataNode
+  hdfs-datanode:
+    image: bde/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    ports:
+      - "9864:9864"
+    environment:
+      - SERVICE_PRECONDITION=hdfs-namenode:9870
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    depends_on:
+      - hdfs-namenode
+    networks:
+      - bigdata-net
+
+  # HBase Master
+  hbase-master:
+    image: bde/hbase-master:2.4.17-hadoop3.3.6-java8
+    ports:
+      - "16010:16010"
+      - "16000:16000"
+    environment:
+      - HBASE_MASTER_HOST=hbase-master
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper
+    depends_on:
+      - hdfs-namenode
+      - zookeeper
+    networks:
+      - bigdata-net
+
+  # HBase RegionServer
+  hbase-regionserver:
+    image: bde/hbase-regionserver:2.4.17-hadoop3.3.6-java8
+    ports:
+      - "16020:16020"
+      - "16030:16030"
+    environment:
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper
+      - SERVICE_PRECONDITION=hbase-master:16000
+    depends_on:
+      - hbase-master
+    networks:
+      - bigdata-net
+
+  # Zookeeper
+  zookeeper:
+    image: zookeeper:3.8
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOO_MY_ID=1
+    networks:
+      - bigdata-net
+
+  # Elasticsearch
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - bigdata-net
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+  elasticsearch_data:
+
+networks:
+  bigdata-net:
+    driver: bridge

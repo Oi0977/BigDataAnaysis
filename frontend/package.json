@@ -1,0 +1,21 @@
+{
+  "name": "douyin-analytics-frontend",
+  "version": "1.0.0",
+  "description": "抖音电商竞品智能分析与AI素材工厂前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "vue-router": "^4.2.0",
+    "echarts": "^5.4.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.0",
+    "vite": "^4.4.0"
+  }
+}

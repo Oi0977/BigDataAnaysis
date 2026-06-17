@@ -2,7 +2,7 @@ from confluent_kafka import Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 import json
 from typing import Any
-from app.config import settings
+from backend.app.config import settings
 
 class KafkaService:
     def __init__(self):

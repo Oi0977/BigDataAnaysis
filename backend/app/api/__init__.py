@@ -1,3 +1,1 @@
-from fastapi import APIRouter
-
-router = APIRouter()
+# API 路由模块

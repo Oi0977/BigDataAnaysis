@@ -1,11 +1,11 @@
 import httpx
 from typing import Dict, Any, List, Optional
-from app.config import settings
+from backend.app.config import settings
 
 class AIService:
     def __init__(self):
         self.api_key = settings.ai_api_key
-        self.api_url = settings.ai_api_url
+        self.api_url = settings.ai_base_url
         self.model = settings.ai_model
 
     def generate_copywriting(

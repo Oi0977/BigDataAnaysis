@@ -31,7 +31,9 @@
 
 <script>
 import * as echarts from 'echarts'
-import { getDashboardStats, getHotProducts } from '../api'
+import { getDashboardStats, getDashboardTrend } from '../api'
+
+const COLORS = ['#00f5ff', '#a855f7', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6']
 
 export default {
   name: 'Home',
@@ -43,6 +45,9 @@ export default {
         { icon: '🔥', value: '0', label: '爆款数量' },
         { icon: '📈', value: '0', label: '品类数量' }
       ],
+      categoryData: [],
+      trendMonths: [],
+      trendData: [],
       categoryChart: null,
       trendChart: null
     }
@@ -54,13 +59,30 @@ export default {
   methods: {
     async loadData() {
       try {
-        const statsRes = await getDashboardStats()
+        const [statsRes, trendRes] = await Promise.all([
+          getDashboardStats(),
+          getDashboardTrend()
+        ])
+
         if (statsRes.data.code === 200) {
           const data = statsRes.data.data
           this.stats[0].value = data.totalProducts
           this.stats[1].value = data.totalReviews
           this.stats[2].value = data.hotProductsCount
           this.stats[3].value = Object.keys(data.categoryStats).length
+
+          // 动态生成饼图数据
+          this.categoryData = Object.entries(data.categoryStats).map(([name, info], i) => ({
+            value: info.count,
+            name: name,
+            itemStyle: { color: COLORS[i % COLORS.length] }
+          }))
+        }
+
+        if (trendRes.data.code === 200) {
+          const data = trendRes.data.data
+          this.trendMonths = data.months || []
+          this.trendData = data.hotScores || []
         }
       } catch (error) {
         console.error('加载数据失败:', error)
@@ -105,15 +127,8 @@ export default {
               shadowColor: 'rgba(0, 245, 255, 0.5)'
             }
           },
-          data: [
-            { value: 25, name: '手机', itemStyle: { color: '#00f5ff' } },
-            { value: 18, name: '电脑', itemStyle: { color: '#a855f7' } },
-            { value: 15, name: '服装', itemStyle: { color: '#ec4899' } },
-            { value: 12, name: '美妆', itemStyle: { color: '#10b981' } },
-            { value: 10, name: '食品', itemStyle: { color: '#f59e0b' } },
-            { value: 8, name: '家居', itemStyle: { color: '#3b82f6' } },
-            { value: 7, name: '数码', itemStyle: { color: '#ef4444' } },
-            { value: 5, name: '运动', itemStyle: { color: '#8b5cf6' } }
+          data: this.categoryData.length > 0 ? this.categoryData : [
+            { value: 0, name: '暂无数据', itemStyle: { color: '#374151' } }
           ]
         }]
       }
@@ -132,7 +147,7 @@ export default {
         },
         xAxis: {
           type: 'category',
-          data: ['1月', '2月', '3月', '4月', '5月', '6月'],
+          data: this.trendMonths.length > 0 ? this.trendMonths : ['暂无数据'],
           axisLine: { lineStyle: { color: '#374151' } },
           axisLabel: { color: '#94a3b8' }
         },
@@ -143,7 +158,7 @@ export default {
           splitLine: { lineStyle: { color: 'rgba(55, 65, 81, 0.5)' } }
         },
         series: [{
-          data: [12000, 15000, 13000, 18000, 22000, 25000],
+          data: this.trendData.length > 0 ? this.trendData : [0],
           type: 'line',
           smooth: true,
           symbol: 'circle',

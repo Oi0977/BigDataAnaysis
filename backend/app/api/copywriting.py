@@ -1,16 +1,19 @@
+import uuid
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Optional, List
-from app.core.hbase_service import hbase_service
-from app.core.ai_service import ai_service
+from typing import Optional
+from backend.app.core.hbase_service import hbase_service
+from backend.app.core.ai_service import ai_service
 
 router = APIRouter()
+
 
 class CopywritingRequest(BaseModel):
     product_id: str
     style: str = "professional"
     requirements: Optional[str] = None
     count: int = 3
+
 
 @router.post("/generate")
 async def generate_copywriting(request: CopywritingRequest):
@@ -36,15 +39,28 @@ async def generate_copywriting(request: CopywritingRequest):
         # 生成文案
         copywriting_list = []
         for i in range(request.count):
-            文案 = ai_service.generate_copywriting(
+            content = ai_service.generate_copywriting(
                 product_info=product,
                 keywords=keywords,
                 style=request.style,
                 requirements=request.requirements
             )
+
+            # 持久化到 HBase
+            copywriting_id = f"W{uuid.uuid4().hex[:8]}"
+            try:
+                hbase_service.insert_copywriting(
+                    copywriting_id=copywriting_id,
+                    product_id=request.product_id,
+                    content=content,
+                    style=request.style
+                )
+            except Exception as e:
+                print(f"保存文案失败: {e}")
+
             copywriting_list.append({
-                "id": i + 1,
-                "content": 文案,
+                "id": copywriting_id,
+                "content": content,
                 "style": request.style
             })
 

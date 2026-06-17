@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Query
 from typing import Optional
-from app.core.hbase_service import hbase_service
+from backend.app.core.hbase_service import hbase_service
+from backend.app.core.nlp_service import nlp_service
 from collections import Counter
 
 router = APIRouter()
+
 
 @router.get("/analysis")
 async def get_review_analysis(
@@ -22,19 +24,14 @@ async def get_review_analysis(
                 product_reviews = hbase_service.get_reviews_by_product(product['product_id'])
                 reviews.extend(product_reviews)
         else:
-            # 获取所有评价
-            reviews = []
-            for key, data in hbase_service.connection.table('review').scan():
-                review = {
-                    'review_id': key.decode(),
-                    'product_id': data.get(b'info:productId', b'').decode(),
-                    'content': data.get(b'info:content', b'').decode(),
-                    'rating': int(data.get(b'info:rating', b'0').decode()),
-                    'keywords': data.get(b'info:keywords', b'').decode().split(','),
-                    'sentiment': data.get(b'info:sentiment', b'').decode(),
-                    'create_time': data.get(b'info:createTime', b'').decode()
-                }
-                reviews.append(review)
+            reviews = hbase_service.get_all_reviews()
+
+        # 使用 NLP 重新分析关键词和情感
+        for review in reviews:
+            # 用 jieba 重新提取关键词
+            review['keywords'] = nlp_service.extract_keywords(review['content'])
+            # 用 SnowNLP 重新做情感分析
+            review['sentiment'] = nlp_service.analyze_sentiment(review['content'])
 
         # 统计关键词
         keyword_counter = Counter()
@@ -56,6 +53,7 @@ async def get_review_analysis(
         # 生成分析报告
         high_freq_keywords = keyword_counter.most_common(10)
 
+        total = len(reviews) if reviews else 1
         return {
             "code": 200,
             "message": "success",
@@ -65,7 +63,7 @@ async def get_review_analysis(
                 "sentimentDistribution": dict(sentiment_counter),
                 "ratingDistribution": dict(rating_counter),
                 "topComplaints": [
-                    {"keyword": kw, "count": cnt, "percentage": round(cnt/len(reviews)*100, 1)}
+                    {"keyword": kw, "count": cnt, "percentage": round(cnt / total * 100, 1)}
                     for kw, cnt in high_freq_keywords[:5]
                 ]
             }

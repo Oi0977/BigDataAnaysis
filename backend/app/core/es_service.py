@@ -1,7 +1,8 @@
 import threading
 from elasticsearch import Elasticsearch
 from typing import List, Dict, Any, Optional
-from app.config import settings
+from backend.app.config import settings
+
 
 class ESService:
     _instance = None
@@ -43,10 +44,11 @@ class ESService:
                             "productId": {"type": "keyword"},
                             "name": {"type": "text", "analyzer": "ik_max_word"},
                             "category": {"type": "keyword"},
+                            "brand": {"type": "keyword"},
                             "description": {"type": "text", "analyzer": "ik_max_word"},
-                            "hotScore": {"type": "float"},
-                            "sales": {"type": "long"},
-                            "price": {"type": "float"}
+                            "price": {"type": "float"},
+                            "originalPrice": {"type": "float"},
+                            "shopName": {"type": "keyword"}
                         }
                     }
                 }
@@ -62,12 +64,12 @@ class ESService:
                 "productId": product['product_id'],
                 "name": product['name'],
                 "category": product['category'],
+                "brand": product.get('brand', ''),
                 "description": product.get('description', ''),
-                "hotScore": product['hot_score'],
-                "sales": product['sales'],
-                "price": product['price']
+                "price": product['price'],
+                "originalPrice": product.get('original_price', 0),
+                "shopName": product.get('shop_name', '')
             }
-
             self.client.index(
                 index=self.index_name,
                 id=product['product_id'],
@@ -83,24 +85,20 @@ class ESService:
                 "query": {
                     "multi_match": {
                         "query": query,
-                        "fields": ["name^3", "description^2", "category"]
+                        "fields": ["name^3", "description^2", "category", "brand"]
                     }
                 },
-                "size": limit,
-                "sort": [{"_score": "desc"}, {"hotScore": "desc"}]
+                "size": limit
             }
-
             response = self.client.search(
                 index=self.index_name,
                 body=search_query
             )
-
             products = []
             for hit in response['hits']['hits']:
                 product = hit['_source']
                 product['score'] = hit['_score']
                 products.append(product)
-
             return products
         except Exception as e:
             print(f"搜索商品失败: {e}")
@@ -109,13 +107,10 @@ class ESService:
     def get_similar_products(self, product_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """获取相似商品"""
         try:
-            # 先获取商品信息
             product = self.client.get(
                 index=self.index_name,
                 id=product_id
             )['_source']
-
-            # 用商品名称和描述搜索相似商品
             similar_query = {
                 "query": {
                     "bool": {
@@ -130,16 +125,15 @@ class ESService:
                 },
                 "size": limit
             }
-
             response = self.client.search(
                 index=self.index_name,
                 body=similar_query
             )
-
             return [hit['_source'] for hit in response['hits']['hits']]
         except Exception as e:
             print(f"获取相似商品失败: {e}")
             return []
+
 
 # 模块级别获取单例实例
 es_service = ESService()

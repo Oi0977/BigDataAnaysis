@@ -5,30 +5,40 @@
 ## 技术栈
 
 - **前端：** Vue3 + ECharts
-- **后端：** FastAPI + Python 3.11
+- **后端：** FastAPI + Python 3.12
 - **大数据：** Kafka + Spark + HDFS + HBase + Elasticsearch
 - **部署：** Docker + Docker Compose
 - **包管理：** uv
 
 ## 快速开始
 
-### 1. 启动服务
+### 1. 启动大数据组件
 
-```bash
-make build
-make up
+```powershell
+docker-compose up -d
 ```
 
-### 2. 生成测试数据
+### 2. 初始化数据
 
-```bash
-make mock-data
-make init-data
+在 PyCharm 中运行 `scripts/init_data.py`，将 mock 数据导入 HBase 和 Elasticsearch。
+
+### 3. 启动后端
+
+```powershell
+cd backend
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. 访问应用
+### 4. 启动前端
 
-- 前端：http://localhost
+```powershell
+cd frontend
+npm run dev
+```
+
+### 5. 访问应用
+
+- 前端：http://localhost:3000
 - 后端API：http://localhost:8000/docs
 
 ## 功能模块
@@ -47,10 +57,11 @@ BigHomework/
 ├── frontend/          # 前端项目
 ├── backend/           # 后端项目
 ├── spark-jobs/        # Spark作业
+├── scripts/           # 数据初始化等脚本
 ├── mock-data/         # Mock数据
+├── docker/            # Docker配置文件
 ├── docker-compose.yml # Docker编排
-├── Makefile          # 构建命令
-└── docs/             # 文档
+└── docs/              # 文档
 ```
 
 ## 开发指南
@@ -63,17 +74,14 @@ BigHomework/
 
 ### 后端开发
 
-```bash
+```powershell
 cd backend
 
 # 创建虚拟环境
-uv venv --python 3.11
+uv venv --python 3.12
 
 # 激活虚拟环境
-# Windows
 .venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
 
 # 安装依赖
 uv sync
@@ -84,7 +92,7 @@ uv run uvicorn app.main:app --reload
 
 ### 前端开发
 
-```bash
+```powershell
 cd frontend
 
 # 安装依赖
@@ -96,11 +104,7 @@ npm run dev
 
 ### 运行测试
 
-```bash
-# 使用Makefile
-make test
-
-# 或者手动运行
+```powershell
 cd backend
 uv run pytest tests/ -v
 ```
@@ -113,30 +117,36 @@ uv run pytest tests/ -v
 |------|------|------|
 | frontend | 80 | Vue3前端 |
 | backend | 8000 | FastAPI后端 |
-| kafka | 9092 | 消息队列 |
+| kafka | 9094 | 消息队列 |
 | spark-master | 7077, 8080 | Spark主节点 |
 | spark-worker | 8081 | Spark工作节点 |
 | hdfs-namenode | 9870, 9000 | HDFS主节点 |
 | hdfs-datanode | 9864 | HDFS数据节点 |
-| hbase-master | 16010, 16000 | HBase主节点 |
+| hbase-master | 16010, 16000, 9090 | HBase主节点 |
 | hbase-regionserver | 16020, 16030 | HBase区域服务器 |
 | zookeeper | 2181 | Zookeeper |
-| elasticsearch | 9200, 9300 | 搜索引擎 |
+| elasticsearch | 9200, 9300 | 搜索引擎（含IK中文分词） |
 
 ### 常用命令
 
-```bash
-# 启动所有服务
-make up
+```powershell
+# 启动所有大数据组件
+docker-compose up -d
 
 # 停止所有服务
-make down
+docker-compose down
 
-# 查看日志
-make logs
+# 停止并删除数据卷
+docker-compose down -v
 
-# 构建镜像
-make build
+# 查看容器状态
+docker-compose ps
+
+# 查看某个服务日志
+docker-compose logs -f elasticsearch
+
+# 重建某个服务
+docker-compose up -d --build elasticsearch
 ```
 
 ## 数据来源

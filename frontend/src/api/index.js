@@ -10,6 +10,10 @@ export const getDashboardStats = () => {
   return api.get('/dashboard/stats')
 }
 
+export const getDashboardTrend = () => {
+  return api.get('/dashboard/trend')
+}
+
 // 爆款分析API
 export const getHotProducts = (params = {}) => {
   return api.get('/products/hot', { params })

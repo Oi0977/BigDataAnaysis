@@ -1,13 +1,15 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
+
 
 class ReviewBase(BaseModel):
     content: str
     rating: int
-    keywords: List[str]
     sentiment: str
     username: Optional[str] = None
+    likes: Optional[int] = 0
+
 
 class ReviewResponse(ReviewBase):
     review_id: str

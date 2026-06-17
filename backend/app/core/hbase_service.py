@@ -1,11 +1,44 @@
 import happybase
 import threading
+import functools
+from datetime import datetime
 from typing import List, Dict, Any, Optional
-from app.config import settings
+from backend.app.config import settings
+
+
+def _retry_on_disconnect(func):
+    """装饰器：HBase连接断开时自动重连并重试一次"""
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            error_msg = str(e).lower()
+            if any(kw in error_msg for kw in ['timed out', 'connection', 'broken', 'missing result', 'socket', 'reset']):
+                print(f"[HBase重试] {func.__name__} 失败，尝试重连: {e}")
+                try:
+                    self.connect()
+                    return func(self, *args, **kwargs)
+                except Exception as e2:
+                    print(f"[HBase重试] {func.__name__} 重连后仍失败: {e2}")
+                    raise
+            raise
+    return wrapper
+
 
 class HBaseService:
     _instance = None
     _lock = threading.Lock()
+
+    # 新表结构定义
+    TABLES = {
+        'product': {'info': dict(max_versions=3)},
+        'review': {'info': dict(max_versions=3)},
+        'monthly_sales': {'data': dict(max_versions=1)},
+        'product_analysis': {'metrics': dict(max_versions=1), 'trend': dict(max_versions=1)},
+        'review_analysis': {'stats': dict(max_versions=1)},
+        'copywriting': {'info': dict(max_versions=3)},
+    }
 
     def __new__(cls):
         if cls._instance is None:
@@ -25,47 +58,170 @@ class HBaseService:
     def connect(self):
         """连接HBase"""
         try:
+            if self.connection:
+                try:
+                    self.connection.close()
+                except Exception:
+                    pass
             self.connection = happybase.Connection(
                 host=settings.hbase_host,
-                port=settings.hbase_port
+                port=settings.hbase_port,
+                timeout=10
             )
             print("HBase连接成功")
         except Exception as e:
             print(f"HBase连接失败: {e}")
 
-    def create_tables(self):
-        """创建表"""
-        tables = ['product', 'review', 'copywriting']
+    def _ensure_connection(self):
+        """确保连接存活，断开则自动重连"""
+        try:
+            self.connection.tables()
+        except Exception:
+            print("HBase连接已断开，正在重连...")
+            self.connect()
 
-        for table_name in tables:
+    def create_tables(self):
+        """创建所有表"""
+        self._ensure_connection()
+        existing = self.connection.tables()
+        for table_name, families in self.TABLES.items():
             try:
-                if table_name.encode() not in self.connection.tables():
-                    self.connection.create_table(
-                        table_name.encode(),
-                        {'info': dict(max_versions=3)}
-                    )
+                if table_name.encode() not in existing:
+                    self.connection.create_table(table_name.encode(), families)
                     print(f"创建表: {table_name}")
             except Exception as e:
                 print(f"创建表失败 {table_name}: {e}")
 
-    def insert_product(self, product: Dict[str, Any]):
-        """插入商品数据"""
-        table = self.connection.table('product')
-        table.put(
-            product['product_id'].encode(),
-            {
-                'info:name': product['name'].encode(),
-                'info:category': product['category'].encode(),
-                'info:price': str(product['price']).encode(),
-                'info:sales': str(product['sales']).encode(),
-                'info:rating': str(product['rating']).encode(),
-                'info:hotScore': str(product['hot_score']).encode(),
-                'info:imageUrl': product['image_url'].encode(),
-                'info:description': product.get('description', '').encode(),
-                'info:createTime': product['create_time'].encode()
-            }
-        )
+    # ==================== 商品原始数据 ====================
 
+    @_retry_on_disconnect
+    def insert_product(self, product: Dict[str, Any]):
+        """插入商品基础信息"""
+        table = self.connection.table('product')
+        row = {
+            'info:name': product['name'].encode(),
+            'info:category': product['category'].encode(),
+            'info:brand': product.get('brand', '').encode(),
+            'info:price': str(product['price']).encode(),
+            'info:originalPrice': str(product.get('original_price', 0)).encode(),
+            'info:imageUrl': product.get('image_url', '').encode(),
+            'info:description': product.get('description', '').encode(),
+            'info:shopName': product.get('shop_name', '').encode(),
+            'info:createTime': product.get('create_time', '').encode(),
+        }
+        table.put(product['product_id'].encode(), row)
+
+    @_retry_on_disconnect
+    def get_product(self, product_id: str) -> Optional[Dict[str, Any]]:
+        """获取商品基础信息"""
+        table = self.connection.table('product')
+        row = table.row(product_id.encode())
+        if not row:
+            return None
+        return {
+            'product_id': product_id,
+            'name': row.get(b'info:name', b'').decode(),
+            'category': row.get(b'info:category', b'').decode(),
+            'brand': row.get(b'info:brand', b'').decode(),
+            'price': float(row.get(b'info:price', b'0').decode()),
+            'original_price': float(row.get(b'info:originalPrice', b'0').decode()),
+            'image_url': row.get(b'info:imageUrl', b'').decode(),
+            'description': row.get(b'info:description', b'').decode(),
+            'shop_name': row.get(b'info:shopName', b'').decode(),
+            'create_time': row.get(b'info:createTime', b'').decode(),
+        }
+
+    @_retry_on_disconnect
+    def get_all_products(self) -> List[Dict[str, Any]]:
+        """获取所有商品基础信息"""
+        table = self.connection.table('product')
+        products = []
+        for key, data in table.scan():
+            products.append({
+                'product_id': key.decode(),
+                'name': data.get(b'info:name', b'').decode(),
+                'category': data.get(b'info:category', b'').decode(),
+                'brand': data.get(b'info:brand', b'').decode(),
+                'price': float(data.get(b'info:price', b'0').decode()),
+                'original_price': float(data.get(b'info:originalPrice', b'0').decode()),
+                'image_url': data.get(b'info:imageUrl', b'').decode(),
+                'description': data.get(b'info:description', b'').decode(),
+                'shop_name': data.get(b'info:shopName', b'').decode(),
+                'create_time': data.get(b'info:createTime', b'').decode(),
+            })
+        return products
+
+    @_retry_on_disconnect
+    def get_products_by_category(self, category: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """按品类获取商品"""
+        products = self.get_all_products()
+        filtered = [p for p in products if p['category'] == category]
+        return filtered[:limit]
+
+    # ==================== 商品分析结果（Spark计算） ====================
+
+    @_retry_on_disconnect
+    def insert_product_analysis(self, analysis: Dict[str, Any]):
+        """插入Spark计算的商品分析结果"""
+        table = self.connection.table('product_analysis')
+        row = {
+            'metrics:hotScore': str(analysis.get('hot_score', 0)).encode(),
+            'metrics:positiveRate': str(analysis.get('positive_rate', 0)).encode(),
+            'metrics:negativeRate': str(analysis.get('negative_rate', 0)).encode(),
+            'metrics:reviewCount': str(analysis.get('review_count', 0)).encode(),
+            'metrics:avgRating': str(analysis.get('avg_rating', 0)).encode(),
+            'metrics:monthlyGrowth': str(analysis.get('monthly_growth', 0)).encode(),
+            'metrics:totalSales': str(analysis.get('total_sales', 0)).encode(),
+            'metrics:topTags': analysis.get('top_tags', '').encode(),
+            'metrics:updateTime': datetime.now().isoformat().encode(),
+        }
+        if analysis.get('sales_trend'):
+            row['trend:salesTrend'] = analysis['sales_trend'].encode()
+        table.put(analysis['product_id'].encode(), row)
+
+    @_retry_on_disconnect
+    def get_product_analysis(self, product_id: str) -> Optional[Dict[str, Any]]:
+        """获取商品分析结果"""
+        table = self.connection.table('product_analysis')
+        row = table.row(product_id.encode())
+        if not row:
+            return None
+        return {
+            'product_id': product_id,
+            'hot_score': float(row.get(b'metrics:hotScore', b'0').decode()),
+            'positive_rate': float(row.get(b'metrics:positiveRate', b'0').decode()),
+            'negative_rate': float(row.get(b'metrics:negativeRate', b'0').decode()),
+            'review_count': int(row.get(b'metrics:reviewCount', b'0').decode()),
+            'avg_rating': float(row.get(b'metrics:avgRating', b'0').decode()),
+            'monthly_growth': float(row.get(b'metrics:monthlyGrowth', b'0').decode()),
+            'total_sales': int(row.get(b'metrics:totalSales', b'0').decode()),
+            'top_tags': row.get(b'metrics:topTags', b'').decode(),
+            'sales_trend': row.get(b'trend:salesTrend', b'').decode(),
+        }
+
+    @_retry_on_disconnect
+    def get_all_product_analysis(self) -> List[Dict[str, Any]]:
+        """获取所有商品分析结果"""
+        table = self.connection.table('product_analysis')
+        results = []
+        for key, data in table.scan():
+            results.append({
+                'product_id': key.decode(),
+                'hot_score': float(data.get(b'metrics:hotScore', b'0').decode()),
+                'positive_rate': float(data.get(b'metrics:positiveRate', b'0').decode()),
+                'negative_rate': float(data.get(b'metrics:negativeRate', b'0').decode()),
+                'review_count': int(data.get(b'metrics:reviewCount', b'0').decode()),
+                'avg_rating': float(data.get(b'metrics:avgRating', b'0').decode()),
+                'monthly_growth': float(data.get(b'metrics:monthlyGrowth', b'0').decode()),
+                'total_sales': int(data.get(b'metrics:totalSales', b'0').decode()),
+                'top_tags': data.get(b'metrics:topTags', b'').decode(),
+                'sales_trend': data.get(b'trend:salesTrend', b'').decode(),
+            })
+        return results
+
+    # ==================== 评价数据 ====================
+
+    @_retry_on_disconnect
     def insert_review(self, review: Dict[str, Any]):
         """插入评价数据"""
         table = self.connection.table('review')
@@ -75,85 +231,147 @@ class HBaseService:
                 'info:productId': review['product_id'].encode(),
                 'info:content': review['content'].encode(),
                 'info:rating': str(review['rating']).encode(),
-                'info:keywords': ','.join(review['keywords']).encode(),
-                'info:sentiment': review['sentiment'].encode(),
+                'info:sentiment': review.get('sentiment', '').encode(),
+                'info:likes': str(review.get('likes', 0)).encode(),
                 'info:username': review.get('username', '').encode(),
-                'info:createTime': review['create_time'].encode()
+                'info:createTime': review.get('create_time', '').encode()
             }
         )
 
-    def get_product(self, product_id: str) -> Optional[Dict[str, Any]]:
-        """获取商品数据"""
-        table = self.connection.table('product')
-        row = table.row(product_id.encode())
-
-        if not row:
-            return None
-
-        return {
-            'product_id': product_id,
-            'name': row.get(b'info:name', b'').decode(),
-            'category': row.get(b'info:category', b'').decode(),
-            'price': float(row.get(b'info:price', b'0').decode()),
-            'sales': int(row.get(b'info:sales', b'0').decode()),
-            'rating': float(row.get(b'info:rating', b'0').decode()),
-            'hot_score': float(row.get(b'info:hotScore', b'0').decode()),
-            'image_url': row.get(b'info:imageUrl', b'').decode(),
-            'description': row.get(b'info:description', b'').decode(),
-            'create_time': row.get(b'info:createTime', b'').decode()
-        }
-
-    def get_products_by_category(self, category: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """按品类获取商品"""
-        table = self.connection.table('product')
-        products = []
-
-        for key, data in table.scan():
-            if data.get(b'info:category', b'').decode() == category:
-                product = {
-                    'product_id': key.decode(),
-                    'name': data.get(b'info:name', b'').decode(),
-                    'category': category,
-                    'price': float(data.get(b'info:price', b'0').decode()),
-                    'sales': int(data.get(b'info:sales', b'0').decode()),
-                    'rating': float(data.get(b'info:rating', b'0').decode()),
-                    'hot_score': float(data.get(b'info:hotScore', b'0').decode()),
-                    'image_url': data.get(b'info:imageUrl', b'').decode(),
-                    'description': data.get(b'info:description', b'').decode(),
-                    'create_time': data.get(b'info:createTime', b'').decode()
-                }
-                products.append(product)
-
-                if len(products) >= limit:
-                    break
-
-        return sorted(products, key=lambda x: x['hot_score'], reverse=True)
-
+    @_retry_on_disconnect
     def get_reviews_by_product(self, product_id: str) -> List[Dict[str, Any]]:
         """获取商品的评价"""
         table = self.connection.table('review')
         reviews = []
-
         for key, data in table.scan():
             if data.get(b'info:productId', b'').decode() == product_id:
-                review = {
+                reviews.append({
                     'review_id': key.decode(),
                     'product_id': product_id,
                     'content': data.get(b'info:content', b'').decode(),
                     'rating': int(data.get(b'info:rating', b'0').decode()),
-                    'keywords': data.get(b'info:keywords', b'').decode().split(','),
                     'sentiment': data.get(b'info:sentiment', b'').decode(),
+                    'likes': int(data.get(b'info:likes', b'0').decode()),
                     'username': data.get(b'info:username', b'').decode(),
                     'create_time': data.get(b'info:createTime', b'').decode()
-                }
-                reviews.append(review)
-
+                })
         return reviews
+
+    @_retry_on_disconnect
+    def get_all_reviews(self) -> List[Dict[str, Any]]:
+        """获取所有评价"""
+        table = self.connection.table('review')
+        reviews = []
+        for key, data in table.scan():
+            reviews.append({
+                'review_id': key.decode(),
+                'product_id': data.get(b'info:productId', b'').decode(),
+                'content': data.get(b'info:content', b'').decode(),
+                'rating': int(data.get(b'info:rating', b'0').decode()),
+                'sentiment': data.get(b'info:sentiment', b'').decode(),
+                'likes': int(data.get(b'info:likes', b'0').decode()),
+                'username': data.get(b'info:username', b'').decode(),
+                'create_time': data.get(b'info:createTime', b'').decode()
+            })
+        return reviews
+
+    # ==================== 月度销量 ====================
+
+    @_retry_on_disconnect
+    def insert_daily_sales(self, sales: Dict[str, Any]):
+        """插入日销量数据"""
+        table = self.connection.table('monthly_sales')
+        rowkey = f"{sales['product_id']}_{sales['date']}"
+        table.put(
+            rowkey.encode(),
+            {
+                'data:dailySales': str(sales['daily_sales']).encode(),
+                'data:dailyAmount': str(sales['daily_amount']).encode(),
+            }
+        )
+
+    @_retry_on_disconnect
+    def get_daily_sales(self, product_id: str) -> List[Dict[str, Any]]:
+        """获取商品的日销量数据"""
+        table = self.connection.table('monthly_sales')
+        prefix = f"{product_id}_".encode()
+        results = []
+        for key, data in table.scan(row_prefix=prefix):
+            key_str = key.decode()
+            date = key_str.split('_', 1)[1] if '_' in key_str else ''
+            results.append({
+                'product_id': product_id,
+                'date': date,
+                'daily_sales': int(data.get(b'data:dailySales', b'0').decode()),
+                'daily_amount': float(data.get(b'data:dailyAmount', b'0').decode()),
+            })
+        return results
+
+    # ==================== 评价分析（Spark计算） ====================
+
+    @_retry_on_disconnect
+    def insert_review_analysis(self, analysis: Dict[str, Any]):
+        """插入Spark计算的评价分析结果"""
+        table = self.connection.table('review_analysis')
+        row = {
+            'stats:highFreqKeywords': analysis.get('high_freq_keywords', '').encode(),
+            'stats:sentimentDistribution': analysis.get('sentiment_distribution', '').encode(),
+            'stats:ratingDistribution': analysis.get('rating_distribution', '').encode(),
+            'stats:updateTime': datetime.now().isoformat().encode(),
+        }
+        table.put(analysis['product_id'].encode(), row)
+
+    @_retry_on_disconnect
+    def get_review_analysis(self, product_id: str) -> Optional[Dict[str, Any]]:
+        """获取评价分析结果"""
+        table = self.connection.table('review_analysis')
+        row = table.row(product_id.encode())
+        if not row:
+            return None
+        return {
+            'product_id': product_id,
+            'high_freq_keywords': row.get(b'stats:highFreqKeywords', b'').decode(),
+            'sentiment_distribution': row.get(b'stats:sentimentDistribution', b'').decode(),
+            'rating_distribution': row.get(b'stats:ratingDistribution', b'').decode(),
+        }
+
+    # ==================== 文案 ====================
+
+    @_retry_on_disconnect
+    def insert_copywriting(self, copywriting_id: str, product_id: str, content: str, style: str):
+        """插入文案数据"""
+        table = self.connection.table('copywriting')
+        table.put(
+            copywriting_id.encode(),
+            {
+                'info:productId': product_id.encode(),
+                'info:content': content.encode(),
+                'info:style': style.encode(),
+                'info:createTime': datetime.now().isoformat().encode()
+            }
+        )
+
+    @_retry_on_disconnect
+    def get_copywriting_by_product(self, product_id: str) -> List[Dict[str, Any]]:
+        """获取商品的所有文案"""
+        table = self.connection.table('copywriting')
+        results = []
+        for key, data in table.scan():
+            if data.get(b'info:productId', b'').decode() == product_id:
+                results.append({
+                    'copywriting_id': key.decode(),
+                    'product_id': product_id,
+                    'content': data.get(b'info:content', b'').decode(),
+                    'style': data.get(b'info:style', b'').decode(),
+                    'create_time': data.get(b'info:createTime', b'').decode()
+                })
+        return results
 
     def close(self):
         """关闭连接"""
         if self.connection:
             self.connection.close()
+
 
 # 模块级别获取单例实例
 hbase_service = HBaseService()

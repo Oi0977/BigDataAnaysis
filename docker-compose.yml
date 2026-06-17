@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   # 前端服务
   frontend:
+    container_name: frontend
     image: nginx:alpine
     ports:
       - "80:80"
@@ -16,6 +15,7 @@ services:
 
   # 后端服务
   backend:
+    container_name: backend
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
@@ -31,23 +31,25 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPARK_MASTER=spark://spark-master:7077
-      - HBASE_ZOOKEEPER_QUORUM=hbase-master
+      - HBASE_HOST=hbase-master
+      - HBASE_PORT=9090
       - ELASTICSEARCH_HOST=elasticsearch:9200
     networks:
       - bigdata-net
 
   # Kafka (KRaft模式)
   kafka:
+    container_name: kafka
     image: confluentinc/cp-kafka:7.5.0
     ports:
-      - "9092:9092"
+      - "9094:9094"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
@@ -56,25 +58,28 @@ services:
 
   # Spark Master
   spark-master:
-    image: bitnami/spark:3.5
+    container_name: spark-master
+    image: apache/spark:3.5.1
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
       - "7077:7077"
       - "8080:8080"
-    environment:
-      - SPARK_MODE=master
+    volumes:
+      - ./spark-jobs:/opt/spark-jobs
+      - ./mock-data:/data/mock-data
     networks:
       - bigdata-net
 
   # Spark Worker
   spark-worker:
-    image: bitnami/spark:3.5
+    container_name: spark-worker
+    image: apache/spark:3.5.1
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     ports:
       - "8081:8081"
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./spark-jobs:/opt/spark-jobs
+      - ./mock-data:/data/mock-data
     depends_on:
       - spark-master
     networks:
@@ -82,24 +87,28 @@ services:
 
   # HDFS NameNode
   hdfs-namenode:
-    image: bde/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-namenode
+    image: apache/hadoop:3
+    user: root
+    command: bash -c "echo '<configuration><property><name>fs.defaultFS</name><value>hdfs://hdfs-namenode:9000</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml && echo '<configuration><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.namenode.name.dir</name><value>file:///hadoop/dfs/name</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml && /opt/hadoop/bin/hdfs namenode -format -force && /opt/hadoop/bin/hdfs namenode"
     ports:
       - "9870:9870"
       - "9000:9000"
-    environment:
-      - CLUSTER_NAME=test
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
+      - ./mock-data:/data/mock-data
+      - ./spark-jobs:/data/spark-jobs
     networks:
       - bigdata-net
 
   # HDFS DataNode
   hdfs-datanode:
-    image: bde/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-datanode
+    image: apache/hadoop:3
+    user: root
+    command: bash -c "echo '<configuration><property><name>fs.defaultFS</name><value>hdfs://hdfs-namenode:9000</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml && echo '<configuration><property><name>dfs.replication</name><value>1</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml && /opt/hadoop/bin/hdfs datanode"
     ports:
       - "9864:9864"
-    environment:
-      - SERVICE_PRECONDITION=hdfs-namenode:9870
     volumes:
       - hadoop_datanode:/hadoop/dfs/data
     depends_on:
@@ -109,10 +118,12 @@ services:
 
   # HBase Master
   hbase-master:
-    image: bde/hbase-master:2.4.17-hadoop3.3.6-java8
+    container_name: hbase-master
+    image: harisekhon/hbase:latest
     ports:
       - "16010:16010"
       - "16000:16000"
+      - "9090:9090"
     environment:
       - HBASE_MASTER_HOST=hbase-master
       - HBASE_ZOOKEEPER_QUORUM=zookeeper
@@ -124,13 +135,14 @@ services:
 
   # HBase RegionServer
   hbase-regionserver:
-    image: bde/hbase-regionserver:2.4.17-hadoop3.3.6-java8
+    container_name: hbase-regionserver
+    image: harisekhon/hbase:latest
     ports:
       - "16020:16020"
       - "16030:16030"
     environment:
       - HBASE_ZOOKEEPER_QUORUM=zookeeper
-      - SERVICE_PRECONDITION=hbase-master:16000
+      - HBASE_MASTER_HOST=hbase-master
     depends_on:
       - hbase-master
     networks:
@@ -138,6 +150,7 @@ services:
 
   # Zookeeper
   zookeeper:
+    container_name: zookeeper
     image: zookeeper:3.8
     ports:
       - "2181:2181"
@@ -148,7 +161,10 @@ services:
 
   # Elasticsearch
   elasticsearch:
-    image: elasticsearch:8.11.0
+    container_name: elasticsearch
+    build:
+      context: .
+      dockerfile: docker/elasticsearch/Dockerfile
     ports:
       - "9200:9200"
       - "9300:9300"

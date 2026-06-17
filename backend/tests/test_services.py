@@ -1,6 +1,6 @@
 import pytest
-from app.core.hbase_service import hbase_service
-from app.core.es_service import es_service
+from backend.app.core.hbase_service import hbase_service
+from backend.app.core.es_service import es_service
 
 def test_hbase_connection():
     assert hbase_service.connection is not None

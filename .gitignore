@@ -21,6 +21,11 @@ frontend/dist/
 # Docker
 *.log
 
+# Spark output
+spark-warehouse/
+metastore_db/
+derby.log
+
 # OS
 .DS_Store
 Thumbs.db

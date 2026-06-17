@@ -64,14 +64,39 @@ uv tree
 # 在虚拟环境中运行Python脚本
 uv run python <script.py>
 
-# 运行FastAPI
+# 运行FastAPI（从 backend 目录）
+cd backend
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
+# 运行脚本（从项目根目录）
+uv run python scripts/init_data.py
+
 # 运行测试
+cd backend
 uv run pytest tests/ -v
 ```
 
 ## 开发规范
+
+### Python 导入规范（重要）
+
+**所有 Python 导入必须从项目根路径开始，禁止使用相对路径。**
+
+项目根目录是 `BigHomework/`，所有模块导入都应以 `backend.app.` 开头：
+
+```python
+# 正确 ✓
+from backend.app.config import settings
+from backend.app.core.hbase_service import hbase_service
+from backend.app.api import dashboard
+
+# 错误 ✗
+from app.config import settings
+from app.core.hbase_service import hbase_service
+from .config import settings
+```
+
+脚本文件通过 `sys.path.insert(0, project_root)` 将项目根目录加入搜索路径，确保任何位置运行都能正确导入。
 
 ### 代码风格
 

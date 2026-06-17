@@ -34,9 +34,4 @@ export const getReviewAnalysis = (params = {}) => {
   return api.get('/reviews/analysis', { params })
 }
 
-// AI文案生成API
-export const generateCopywriting = (data) => {
-  return api.post('/copywriting/generate', data)
-}
-
 export default api

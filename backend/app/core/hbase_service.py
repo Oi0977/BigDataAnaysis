@@ -42,7 +42,6 @@ class HBaseService:
         'monthly_sales': {'data': dict(max_versions=1)},
         'product_analysis': {'metrics': dict(max_versions=1), 'trend': dict(max_versions=1)},
         'review_analysis': {'stats': dict(max_versions=1)},
-        'copywriting': {'info': dict(max_versions=3)},
     }
 
     def __new__(cls):
@@ -375,38 +374,6 @@ class HBaseService:
             'cluster_keywords': json.loads(row.get(b'stats:clusterKeywords', b'{}').decode()),
             'tfidf_keywords': json.loads(row.get(b'stats:tfidfKeywords', b'[]').decode()),
         }
-
-    # ==================== 文案 ====================
-
-    @_retry_on_disconnect
-    def insert_copywriting(self, copywriting_id: str, product_id: str, content: str, style: str):
-        """插入文案数据"""
-        table = self.connection.table('copywriting')
-        table.put(
-            copywriting_id.encode(),
-            {
-                'info:productId': product_id.encode(),
-                'info:content': content.encode(),
-                'info:style': style.encode(),
-                'info:createTime': datetime.now().isoformat().encode()
-            }
-        )
-
-    @_retry_on_disconnect
-    def get_copywriting_by_product(self, product_id: str) -> List[Dict[str, Any]]:
-        """获取商品的所有文案"""
-        table = self.connection.table('copywriting')
-        results = []
-        for key, data in table.scan():
-            if data.get(b'info:productId', b'').decode() == product_id:
-                results.append({
-                    'copywriting_id': key.decode(),
-                    'product_id': product_id,
-                    'content': data.get(b'info:content', b'').decode(),
-                    'style': data.get(b'info:style', b'').decode(),
-                    'create_time': data.get(b'info:createTime', b'').decode()
-                })
-        return results
 
     def close(self):
         """关闭连接"""

@@ -9,7 +9,7 @@ if project_root not in sys.path:
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.api import dashboard, products, reviews, copywriting
+from backend.app.api import dashboard, products, reviews
 
 
 @asynccontextmanager
@@ -64,7 +64,6 @@ app.add_middleware(
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["监控大屏"])
 app.include_router(products.router, prefix="/api/v1/products", tags=["商品分析"])
 app.include_router(reviews.router, prefix="/api/v1/reviews", tags=["差评分析"])
-app.include_router(copywriting.router, prefix="/api/v1/copywriting", tags=["文案生成"])
 
 
 @app.get("/")

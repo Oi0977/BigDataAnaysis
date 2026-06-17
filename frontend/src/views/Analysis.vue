@@ -22,7 +22,6 @@
       <ReviewAnalysis v-if="activeTab === 'review'" />
       <SellingPoints v-if="activeTab === 'selling'" />
       <SearchProducts v-if="activeTab === 'search'" />
-      <AICopywriting v-if="activeTab === 'copywriting'" />
     </div>
   </div>
 </template>
@@ -32,7 +31,6 @@ import HotProducts from '../components/HotProducts.vue'
 import ReviewAnalysis from '../components/ReviewAnalysis.vue'
 import SellingPoints from '../components/SellingPoints.vue'
 import SearchProducts from '../components/SearchProducts.vue'
-import AICopywriting from '../components/AICopywriting.vue'
 
 export default {
   name: 'Analysis',
@@ -40,8 +38,7 @@ export default {
     HotProducts,
     ReviewAnalysis,
     SellingPoints,
-    SearchProducts,
-    AICopywriting
+    SearchProducts
   },
   data() {
     return {
@@ -50,8 +47,7 @@ export default {
         { id: 'hot', name: '爆款分析', icon: '🔥' },
         { id: 'review', name: '差评分析', icon: '💬' },
         { id: 'selling', name: '卖点推荐', icon: '💡' },
-        { id: 'search', name: '相似检索', icon: '🔍' },
-        { id: 'copywriting', name: 'AI文案', icon: '✨' }
+        { id: 'search', name: '相似检索', icon: '🔍' }
       ]
     }
   }

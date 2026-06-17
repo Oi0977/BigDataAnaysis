@@ -23,10 +23,11 @@ class AIService:
 商品信息：
 - 名称：{product_info['name']}
 - 品类：{product_info['category']}
+- 品牌：{product_info.get('brand', '未知')}
 - 价格：{product_info['price']}元
-- 好评率：{product_info['rating']}
+- 描述：{product_info.get('description', '暂无')}
 
-用户关注点：{', '.join(set(keywords))}
+用户关注点：{', '.join(set(keywords)) if keywords else '暂无'}
 
 文案风格：{style}
 {f'特殊要求：{requirements}' if requirements else ''}
@@ -72,30 +73,28 @@ class AIService:
     ) -> str:
         """生成模板文案（备用方案）"""
 
+        kw_str = ', '.join(keywords[:3]) if keywords else '品质'
         templates = {
             "professional": f"""【{product_info['name']}】品质之选
 
 作为{product_info['category']}品类的热销商品，{product_info['name']}凭借出色的产品力赢得了众多用户的青睐。
 
-✅ 品质保证：{product_info['rating']}分好评率，品质有保障
-✅ 热销爆款：销量突破{product_info['sales']}件，口碑认证
-✅ 用户认可：针对用户关注的{', '.join(keywords[:3])}等痛点，我们提供了完美解决方案
+✅ 品质保证：严格品控，品质有保障
+✅ 用户认可：针对用户关注的{kw_str}等痛点，我们提供了完美解决方案
 
 现在购买仅需{product_info['price']}元，限时优惠中！""",
 
             "casual": f"""姐妹们！这款{product_info['name']}真的绝了！
 
-用了之后发现，之前担心的{', '.join(keywords[:2])}问题完全不存在！
-
-{product_info['rating']}分好评不是盖的，{product_info['sales']}人都在用！
+用了之后发现，之前担心的{kw_str}问题完全不存在！
 
 价格也很美丽，{product_info['price']}元就能拿下，冲就完了！""",
 
-            "emotional": f"""你是否也在为{product_info['category']}产品的{', '.join(keywords[:2])}而烦恼？
+            "emotional": f"""你是否也在为{product_info['category']}产品的{kw_str}而烦恼？
 
 {product_info['name']}，为你而来。
 
-我们深知用户的需求，所以专注于解决每一个痛点。{product_info['rating']}分好评，{product_info['sales']}位用户的选择。
+我们深知用户的需求，所以专注于解决每一个痛点。
 
 {product_info['price']}元，给你的生活带来改变。"""
         }

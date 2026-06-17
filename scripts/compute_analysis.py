@@ -11,7 +11,7 @@
   - negative_rate: 差评率
   - review_count: 评价总数
   - avg_rating: 平均评分
-  - monthly_growth: 月增长率
+  - weekly_growth: 周增长率（最近7天vs前7天）
   - top_tags: 高频关键词
 
 运行方式:
@@ -60,32 +60,38 @@ def extract_keywords(texts, top_n=10):
         return []
 
 
-def compute_monthly_sales(sales_data):
-    """将日销量聚合为月度数据"""
-    monthly = defaultdict(lambda: defaultdict(int))
+def compute_daily_sales(sales_data):
+    """按商品聚合日销量"""
+    daily = defaultdict(lambda: defaultdict(int))
     for s in sales_data:
-        pid = s['product_id']
-        month = s['date'][:7]
-        monthly[pid][month] += s['daily_sales']
-    return monthly
+        daily[s['product_id']][s['date']] += s['daily_sales']
+    return daily
 
 
-def compute_growth_rate(monthly_data, product_id):
-    """计算月增长率"""
-    months = sorted(monthly_data.get(product_id, {}).keys())
-    if len(months) < 2:
-        return 0.0
-    current = monthly_data[product_id][months[-1]]
-    previous = monthly_data[product_id][months[-2]]
-    if previous == 0:
-        return 0.0
-    return round((current - previous) / previous * 100, 2)
+def compute_growth_rate(daily_data, product_id):
+    """计算日增长率和周增长率"""
+    dates = sorted(daily_data.get(product_id, {}).keys())
+    # 日增长率：最后一天 vs 倒数第二天
+    daily_growth = 0.0
+    if len(dates) >= 2:
+        last = daily_data[product_id][dates[-1]]
+        prev = daily_data[product_id][dates[-2]]
+        if prev > 0:
+            daily_growth = round((last - prev) / prev * 100, 2)
+    # 周增长率：最近7天 vs 前7天
+    weekly_growth = 0.0
+    if len(dates) >= 14:
+        recent_7 = sum(daily_data[product_id][d] for d in dates[-7:])
+        prev_7 = sum(daily_data[product_id][d] for d in dates[-14:-7])
+        if prev_7 > 0:
+            weekly_growth = round((recent_7 - prev_7) / prev_7 * 100, 2)
+    return daily_growth, weekly_growth
 
 
 def compute_analysis(products, reviews, monthly_sales):
     """计算所有商品的分析指标"""
-    # 聚合日销量为月度
-    monthly_data = compute_monthly_sales(monthly_sales)
+    # 按商品聚合日销量
+    daily_data = compute_daily_sales(monthly_sales)
 
     # 按商品聚合评价
     review_groups = defaultdict(list)
@@ -117,17 +123,15 @@ def compute_analysis(products, reviews, monthly_sales):
             negative_rate = 0.0
 
         # 销量指标
-        product_months = monthly_data.get(pid, {})
-        total_sales = sum(product_months.values())
-        months_sorted = sorted(product_months.keys())
-        latest_month_sales = product_months.get(months_sorted[-1], 0) if months_sorted else 0
-        last_month_sales = product_months.get(months_sorted[-2], 0) if len(months_sorted) >= 2 else 0
+        product_daily = daily_data.get(pid, {})
+        total_sales = sum(product_daily.values())
 
-        # 月增长率
-        monthly_growth = compute_growth_rate(monthly_data, pid)
+        # 日增长率 + 周增长率
+        daily_growth, weekly_growth = compute_growth_rate(daily_data, pid)
 
-        # 销量趋势（近12个月）
-        sales_trend = [product_months.get(m, 0) for m in months_sorted[-12:]]
+        # 近30天每日销量趋势
+        dates_sorted = sorted(product_daily.keys())
+        sales_trend = [product_daily.get(d, 0) for d in dates_sorted[-30:]]
 
         # 关键词（从该商品的评价中提取）
         product_texts = [r['content'] for r in product_reviews]
@@ -137,9 +141,8 @@ def compute_analysis(products, reviews, monthly_sales):
             'product_id': pid,
             'category': category,
             'total_sales': total_sales,
-            'latest_month_sales': latest_month_sales,
-            'last_month_sales': last_month_sales,
-            'monthly_growth': monthly_growth,
+            'daily_growth': daily_growth,
+            'weekly_growth': weekly_growth,
             'review_count': review_count,
             'avg_rating': avg_rating,
             'positive_rate': positive_rate,
@@ -149,23 +152,43 @@ def compute_analysis(products, reviews, monthly_sales):
         })
 
     # 按品类归一化计算爆款指数
-    category_max = {}
+    category_stats = {}
     for r in results:
         cat = r['category']
-        if cat not in category_max or r['total_sales'] > category_max[cat]:
-            category_max[cat] = r['total_sales']
+        if cat not in category_stats:
+            category_stats[cat] = {'total_sales': 0, 'total_reviews': 0, 'growth_min': float('inf'), 'growth_max': float('-inf')}
+        category_stats[cat]['total_sales'] += r['total_sales']
+        category_stats[cat]['total_reviews'] += r['review_count']
+        category_stats[cat]['growth_min'] = min(category_stats[cat]['growth_min'], r['weekly_growth'])
+        category_stats[cat]['growth_max'] = max(category_stats[cat]['growth_max'], r['weekly_growth'])
 
     for r in results:
         cat = r['category']
-        max_sales = category_max.get(cat, 1)
-        sales_score = r['total_sales'] / max_sales if max_sales > 0 else 0
-        growth_score = min(max(r['monthly_growth'] / 100, 0), 1.0)
-        rating_score = r['avg_rating'] / 5.0 if r['avg_rating'] > 0 else 0.7
-        review_score = min(r['review_count'] / 500, 1.0)
+        cs = category_stats.get(cat, {'total_sales': 1, 'total_reviews': 1, 'growth_min': 0, 'growth_max': 1})
 
+        # 销量分：品类内市场份额
+        sales_score = r['total_sales'] / cs['total_sales'] if cs['total_sales'] > 0 else 0
+
+        # 增长分：品类内min-max归一化
+        g_range = cs['growth_max'] - cs['growth_min']
+        growth_score = (r['weekly_growth'] - cs['growth_min']) / g_range if g_range > 0 else 0.5
+
+        # 评分分：1-5分映射到0-1
+        rating_score = max(0, (r['avg_rating'] - 1) / 4) if r['avg_rating'] > 0 else 0.5
+
+        # 评价分：品类内评价份额
+        review_score = r['review_count'] / cs['total_reviews'] if cs['total_reviews'] > 0 else 0
+
+        # 归一化爆款指数（0-1），各维度得分也保留供前端展示
         r['hot_score'] = round(
-            (0.4 * sales_score + 0.3 * growth_score + 0.2 * rating_score + 0.1 * review_score) * 1000, 2
+            0.4 * sales_score + 0.3 * growth_score + 0.2 * rating_score + 0.1 * review_score, 4
         )
+        r['score_breakdown'] = {
+            'sales': round(sales_score, 4),
+            'growth': round(growth_score, 4),
+            'rating': round(rating_score, 4),
+            'review': round(review_score, 4),
+        }
 
     return results
 
@@ -191,17 +214,25 @@ def write_to_hbase(results):
 
         with table.batch() as batch:
             for r in results:
-                batch.put(r['product_id'].encode(), {
+                row_data = {
                     'metrics:hotScore': str(r['hot_score']).encode(),
                     'metrics:positiveRate': str(r['positive_rate']).encode(),
                     'metrics:negativeRate': str(r['negative_rate']).encode(),
                     'metrics:reviewCount': str(r['review_count']).encode(),
                     'metrics:avgRating': str(r['avg_rating']).encode(),
-                    'metrics:monthlyGrowth': str(r['monthly_growth']).encode(),
+                    'metrics:dailyGrowth': str(r['daily_growth']).encode(),
+                    'metrics:weeklyGrowth': str(r['weekly_growth']).encode(),
                     'metrics:totalSales': str(r['total_sales']).encode(),
                     'metrics:topTags': json.dumps(r['top_tags'], ensure_ascii=False).encode(),
                     'trend:salesTrend': json.dumps(r['sales_trend']).encode(),
-                })
+                }
+                breakdown = r.get('score_breakdown', {})
+                if breakdown:
+                    row_data['metrics:scoreSales'] = str(breakdown.get('sales', 0)).encode()
+                    row_data['metrics:scoreGrowth'] = str(breakdown.get('growth', 0)).encode()
+                    row_data['metrics:scoreRating'] = str(breakdown.get('rating', 0)).encode()
+                    row_data['metrics:scoreReview'] = str(breakdown.get('review', 0)).encode()
+                batch.put(r['product_id'].encode(), row_data)
 
         conn.close()
         print(f"[HBase] 成功写入 {len(results)} 条到 product_analysis 表")
@@ -239,8 +270,8 @@ def main():
     for i, r in enumerate(top10, 1):
         name = next((p['name'] for p in products if p['product_id'] == r['product_id']), '')
         print(f"  {i:2d}. {r['product_id']} {name}")
-        print(f"      品类: {r['category']} | 爆款指数: {r['hot_score']:.0f} | 评分: {r['avg_rating']}")
-        print(f"      总销量: {r['total_sales']} | 好评率: {r['positive_rate']*100:.1f}% | 增长率: {r['monthly_growth']:.1f}%")
+        print(f"      品类: {r['category']} | 爆款指数: {r['hot_score']:.2f} | 评分: {r['avg_rating']}")
+        print(f"      总销量: {r['total_sales']} | 好评率: {r['positive_rate']*100:.1f}% | 日增长: {r['daily_growth']:.1f}% | 周增长: {r['weekly_growth']:.1f}%")
         print(f"      关键词: {', '.join(r['top_tags'][:5])}")
 
     # 5. 保存结果到JSON（备用）

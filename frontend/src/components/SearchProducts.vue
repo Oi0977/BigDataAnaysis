@@ -32,18 +32,19 @@
           </div>
           <h4 class="result-name">{{ product.name }}</h4>
           <p class="result-category">{{ product.category }}</p>
+          <p class="result-desc">{{ product.description?.substring(0, 60) }}...</p>
           <div class="result-stats">
             <div class="stat">
               <span class="stat-label">价格</span>
               <span class="stat-value">¥{{ product.price }}</span>
             </div>
             <div class="stat">
-              <span class="stat-label">销量</span>
-              <span class="stat-value">{{ product.sales }}</span>
+              <span class="stat-label">原价</span>
+              <span class="stat-value">¥{{ product.originalPrice }}</span>
             </div>
             <div class="stat">
-              <span class="stat-label">爆款指数</span>
-              <span class="stat-value">{{ product.hotScore?.toFixed(0) }}</span>
+              <span class="stat-label">店铺</span>
+              <span class="stat-value">{{ product.shopName }}</span>
             </div>
           </div>
         </div>
@@ -225,7 +226,18 @@ export default {
 .result-category {
   color: var(--accent-purple);
   font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.result-desc {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
   margin-bottom: 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .result-stats {

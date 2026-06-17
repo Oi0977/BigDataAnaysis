@@ -1,4 +1,5 @@
 import happybase
+import json
 import threading
 import functools
 from datetime import datetime
@@ -7,22 +8,26 @@ from backend.app.config import settings
 
 
 def _retry_on_disconnect(func):
-    """装饰器：HBase连接断开时自动重连并重试一次"""
+    """装饰器：HBase连接断开时自动重连并重试，最多重试2次"""
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except Exception as e:
-            error_msg = str(e).lower()
-            if any(kw in error_msg for kw in ['timed out', 'connection', 'broken', 'missing result', 'socket', 'reset']):
-                print(f"[HBase重试] {func.__name__} 失败，尝试重连: {e}")
-                try:
-                    self.connect()
-                    return func(self, *args, **kwargs)
-                except Exception as e2:
-                    print(f"[HBase重试] {func.__name__} 重连后仍失败: {e2}")
+        for attempt in range(3):
+            try:
+                return func(self, *args, **kwargs)
+            except Exception as e:
+                error_msg = str(e).lower()
+                is_conn_err = any(kw in error_msg for kw in [
+                    'timed out', 'connection', 'broken', 'missing result',
+                    'socket', 'reset', 'closed', 'eof', '10054'
+                ])
+                if is_conn_err and attempt < 2:
+                    print(f"[HBase重试] {func.__name__} 第{attempt+1}次失败，重连中: {e}")
+                    try:
+                        self.connect()
+                    except Exception:
+                        pass
+                else:
                     raise
-            raise
     return wrapper
 
 
@@ -77,8 +82,12 @@ class HBaseService:
         try:
             self.connection.tables()
         except Exception:
-            print("HBase连接已断开，正在重连...")
+            print("[HBase] 连接已断开，正在重连...")
             self.connect()
+            try:
+                self.connection.tables()
+            except Exception as e:
+                print(f"[HBase] 重连后仍无法访问: {e}")
 
     def create_tables(self):
         """创建所有表"""
@@ -170,11 +179,18 @@ class HBaseService:
             'metrics:negativeRate': str(analysis.get('negative_rate', 0)).encode(),
             'metrics:reviewCount': str(analysis.get('review_count', 0)).encode(),
             'metrics:avgRating': str(analysis.get('avg_rating', 0)).encode(),
-            'metrics:monthlyGrowth': str(analysis.get('monthly_growth', 0)).encode(),
+            'metrics:dailyGrowth': str(analysis.get('daily_growth', 0)).encode(),
+            'metrics:weeklyGrowth': str(analysis.get('weekly_growth', 0)).encode(),
             'metrics:totalSales': str(analysis.get('total_sales', 0)).encode(),
             'metrics:topTags': analysis.get('top_tags', '').encode(),
             'metrics:updateTime': datetime.now().isoformat().encode(),
         }
+        breakdown = analysis.get('score_breakdown')
+        if breakdown:
+            row['metrics:scoreSales'] = str(breakdown.get('sales', 0)).encode()
+            row['metrics:scoreGrowth'] = str(breakdown.get('growth', 0)).encode()
+            row['metrics:scoreRating'] = str(breakdown.get('rating', 0)).encode()
+            row['metrics:scoreReview'] = str(breakdown.get('review', 0)).encode()
         if analysis.get('sales_trend'):
             row['trend:salesTrend'] = analysis['sales_trend'].encode()
         table.put(analysis['product_id'].encode(), row)
@@ -193,10 +209,17 @@ class HBaseService:
             'negative_rate': float(row.get(b'metrics:negativeRate', b'0').decode()),
             'review_count': int(row.get(b'metrics:reviewCount', b'0').decode()),
             'avg_rating': float(row.get(b'metrics:avgRating', b'0').decode()),
-            'monthly_growth': float(row.get(b'metrics:monthlyGrowth', b'0').decode()),
+            'daily_growth': float(row.get(b'metrics:dailyGrowth', b'0').decode()),
+            'weekly_growth': float(row.get(b'metrics:weeklyGrowth', b'0').decode()),
             'total_sales': int(row.get(b'metrics:totalSales', b'0').decode()),
             'top_tags': row.get(b'metrics:topTags', b'').decode(),
             'sales_trend': row.get(b'trend:salesTrend', b'').decode(),
+            'score_breakdown': {
+                'sales': float(row.get(b'metrics:scoreSales', b'0').decode()),
+                'growth': float(row.get(b'metrics:scoreGrowth', b'0').decode()),
+                'rating': float(row.get(b'metrics:scoreRating', b'0').decode()),
+                'review': float(row.get(b'metrics:scoreReview', b'0').decode()),
+            },
         }
 
     @_retry_on_disconnect
@@ -212,10 +235,17 @@ class HBaseService:
                 'negative_rate': float(data.get(b'metrics:negativeRate', b'0').decode()),
                 'review_count': int(data.get(b'metrics:reviewCount', b'0').decode()),
                 'avg_rating': float(data.get(b'metrics:avgRating', b'0').decode()),
-                'monthly_growth': float(data.get(b'metrics:monthlyGrowth', b'0').decode()),
+                'daily_growth': float(data.get(b'metrics:dailyGrowth', b'0').decode()),
+                'weekly_growth': float(data.get(b'metrics:weeklyGrowth', b'0').decode()),
                 'total_sales': int(data.get(b'metrics:totalSales', b'0').decode()),
                 'top_tags': data.get(b'metrics:topTags', b'').decode(),
                 'sales_trend': data.get(b'trend:salesTrend', b'').decode(),
+                'score_breakdown': {
+                    'sales': float(data.get(b'metrics:scoreSales', b'0').decode()),
+                    'growth': float(data.get(b'metrics:scoreGrowth', b'0').decode()),
+                    'rating': float(data.get(b'metrics:scoreRating', b'0').decode()),
+                    'review': float(data.get(b'metrics:scoreReview', b'0').decode()),
+                },
             })
         return results
 
@@ -319,6 +349,12 @@ class HBaseService:
             'stats:ratingDistribution': analysis.get('rating_distribution', '').encode(),
             'stats:updateTime': datetime.now().isoformat().encode(),
         }
+        # ML分析新增字段
+        for key, field in [('topicDistribution', 'topic_distribution'), ('topicKeywords', 'topic_keywords'),
+                           ('clusterLabels', 'cluster_labels'), ('clusterKeywords', 'cluster_keywords'),
+                           ('tfidfKeywords', 'tfidf_keywords')]:
+            val = analysis.get(field, [])
+            row[f'stats:{key}'] = json.dumps(val, ensure_ascii=False).encode() if val else b'[]'
         table.put(analysis['product_id'].encode(), row)
 
     @_retry_on_disconnect
@@ -333,6 +369,11 @@ class HBaseService:
             'high_freq_keywords': row.get(b'stats:highFreqKeywords', b'').decode(),
             'sentiment_distribution': row.get(b'stats:sentimentDistribution', b'').decode(),
             'rating_distribution': row.get(b'stats:ratingDistribution', b'').decode(),
+            'topic_distribution': json.loads(row.get(b'stats:topicDistribution', b'[]').decode()),
+            'topic_keywords': json.loads(row.get(b'stats:topicKeywords', b'[]').decode()),
+            'cluster_labels': json.loads(row.get(b'stats:clusterLabels', b'{}').decode()),
+            'cluster_keywords': json.loads(row.get(b'stats:clusterKeywords', b'{}').decode()),
+            'tfidf_keywords': json.loads(row.get(b'stats:tfidfKeywords', b'[]').decode()),
         }
 
     # ==================== 文案 ====================

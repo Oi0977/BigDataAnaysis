@@ -20,10 +20,12 @@
       >
         <div class="point-header">
           <span class="point-priority" :class="point.priority">{{ point.priority }}</span>
+          <span class="point-mentions" v-if="point.mentionCount">{{ point.mentionCount }}次提及</span>
           <span class="point-index">#{{ index + 1 }}</span>
         </div>
         <h3 class="point-pain">{{ point.painPoint }}</h3>
         <p class="point-suggestion">{{ point.suggestion }}</p>
+        <p class="point-example" v-if="point.example">{{ point.example }}</p>
       </div>
     </div>
 
@@ -158,6 +160,21 @@ export default {
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.point-mentions {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.point-example {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-pink);
 }
 
 .point-priority.高 {

@@ -307,11 +307,21 @@ def main():
     products = load_products(products_file)
     print(f"加载了 {len(products)} 个商品")
 
-    # 计算时间范围：从当前日期往前推12个月（约365天）
+    # 计算时间范围：从上个月月底往前推12个完整月
     today = datetime.now()
-    start_date = today - timedelta(days=365)
+    # 结束日期设为上个月最后一天（确保所有月份数据完整）
+    if today.month == 1:
+        end_date = datetime(today.year - 1, 12, 31)
+    else:
+        end_date = datetime(today.year, today.month - 1, 1)
+        # 获取该月最后一天
+        import calendar
+        last_day = calendar.monthrange(end_date.year, end_date.month)[1]
+        end_date = datetime(end_date.year, end_date.month, last_day)
+    # 开始日期：结束日期往前364天（约12个月）
+    start_date = end_date - timedelta(days=364)
 
-    print(f"\n时间范围: {start_date.strftime('%Y-%m-%d')} 到 {today.strftime('%Y-%m-%d')}")
+    print(f"\n时间范围: {start_date.strftime('%Y-%m-%d')} 到 {end_date.strftime('%Y-%m-%d')}（12个完整月）")
     print("正在生成销量数据...")
 
     # 为每个商品生成日销量数据
@@ -326,7 +336,7 @@ def main():
             product_id=product_id,
             price=price,
             start_date=start_date,
-            total_days=365
+            total_days=(end_date - start_date).days + 1
         )
 
         all_records.extend(daily_records)

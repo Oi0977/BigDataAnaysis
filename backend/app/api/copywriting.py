@@ -28,13 +28,12 @@ async def generate_copywriting(request: CopywritingRequest):
                 "data": None
             }
 
-        # 获取商品评价
+        # 获取商品评价并提取关键词
         reviews = hbase_service.get_reviews_by_product(request.product_id)
-
-        # 提取关键词
+        from backend.app.core.nlp_service import nlp_service
         keywords = []
         for review in reviews:
-            keywords.extend(review['keywords'])
+            keywords.extend(nlp_service.extract_keywords(review['content']))
 
         # 生成文案
         copywriting_list = []

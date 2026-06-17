@@ -21,4 +21,5 @@ dependencies = [
     "snownlp>=0.12.3",
     "uvicorn>=0.23.0",
     "openai>=2.41.1",
+    "scikit-learn>=1.9.0",
 ]

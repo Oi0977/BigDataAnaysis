@@ -34,7 +34,7 @@ def create_spark_session() -> SparkSession:
     """创建Spark会话"""
     master_url = os.environ.get("SPARK_MASTER", "local[2]")
     return SparkSession.builder \
-        .appName("DouyinDataCleaning") \
+        .appName("EcommerceDataCleaning") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
         .getOrCreate()
@@ -201,7 +201,7 @@ def main():
     spark = create_spark_session()
 
     print("=" * 60)
-    print("  抖音电商数据清洗作业")
+    print("  电商数据洞察平台 - 数据清洗作业")
     print("=" * 60)
 
     try:

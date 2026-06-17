@@ -298,8 +298,8 @@ def load_kafka_config() -> str:
 # 主入口
 # ============================================================
 if __name__ == "__main__":
-    # 生成 100 个商品
-    products = generate_products(100)
+    # 生成 2000 个商品
+    products = generate_products(2000)
 
     # 保存到 JSON 文件
     script_dir = os.path.dirname(os.path.abspath(__file__))

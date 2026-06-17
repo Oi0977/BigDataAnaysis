@@ -32,15 +32,28 @@ async def get_dashboard_stats():
                     category_stats[category] = {'count': 0, 'totalSales': 0}
                 category_stats[category]['count'] += 1
 
-        hot_count = 0
+        # 按品类统计爆款数量（每个品类Top 20%）
         analysis_map = {a['product_id']: a for a in analyses}
+        category_products = {}
         for p in products:
-            cat = p['category']
-            a = analysis_map.get(p['product_id'], {})
-            if cat and cat in category_stats:
+            cat = p.get('category', '')
+            if cat:
+                if cat not in category_products:
+                    category_products[cat] = []
+                a = analysis_map.get(p['product_id'], {})
+                category_products[cat].append({
+                    'product_id': p['product_id'],
+                    'hot_score': a.get('hot_score', 0),
+                    'total_sales': a.get('total_sales', 0)
+                })
                 category_stats[cat]['totalSales'] += a.get('total_sales', 0)
-            if a.get('hot_score', 0) > 0.5:
-                hot_count += 1
+
+        # 计算爆款数量（每个品类Top 20%）
+        hot_count = 0
+        for cat, prods in category_products.items():
+            prods.sort(key=lambda x: x['hot_score'], reverse=True)
+            top_count = max(1, int(len(prods) * 0.2))
+            hot_count += top_count
 
         return {"code": 200, "message": "success", "data": {
             "totalProducts": len(products), "totalReviews": len(reviews),
@@ -63,14 +76,28 @@ def _dashboard_stats_fallback():
                 category_stats[cat] = {'count': 0, 'totalSales': 0}
             category_stats[cat]['count'] += 1
     analysis_map = {a['product_id']: a for a in analyses}
-    hot_count = 0
+
+    # 按品类统计爆款数量（每个品类Top 20%）
+    category_products = {}
     for p in products:
         cat = p.get('category', '')
-        a = analysis_map.get(p['product_id'], {})
-        if cat and cat in category_stats:
+        if cat:
+            if cat not in category_products:
+                category_products[cat] = []
+            a = analysis_map.get(p['product_id'], {})
+            category_products[cat].append({
+                'product_id': p['product_id'],
+                'hot_score': a.get('hot_score', 0),
+                'total_sales': a.get('total_sales', 0)
+            })
             category_stats[cat]['totalSales'] += a.get('total_sales', 0)
-        if a.get('hot_score', 0) > 0.5:
-            hot_count += 1
+
+    hot_count = 0
+    for cat, prods in category_products.items():
+        prods.sort(key=lambda x: x['hot_score'], reverse=True)
+        top_count = max(1, int(len(prods) * 0.2))
+        hot_count += top_count
+
     return {"totalProducts": len(products), "totalReviews": len(reviews),
             "hotProductsCount": hot_count, "categoryStats": category_stats}
 

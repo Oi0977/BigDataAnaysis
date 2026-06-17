@@ -266,13 +266,13 @@ def main():
     # 创建Spark会话
     master_url = os.environ.get("SPARK_MASTER", "local[2]")
     spark = SparkSession.builder \
-        .appName("DouyinTrendAggregation") \
+        .appName("EcommerceTrendAggregation") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
         .getOrCreate()
 
     print("=" * 60)
-    print("  抖音电商趋势聚合作业")
+    print("  电商数据洞察平台 - 趋势聚合作业")
     print("=" * 60)
 
     try:

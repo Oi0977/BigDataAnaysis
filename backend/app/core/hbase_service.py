@@ -70,7 +70,7 @@ class HBaseService:
             self.connection = happybase.Connection(
                 host=settings.hbase_host,
                 port=settings.hbase_port,
-                timeout=10
+                timeout=60
             )
             print("HBase连接成功")
         except Exception as e:

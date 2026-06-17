@@ -285,13 +285,13 @@ def main():
     # 创建Spark会话
     master_url = os.environ.get("SPARK_MASTER", "local[2]")
     spark = SparkSession.builder \
-        .appName("DouyinNLPAnalysis") \
+        .appName("EcommerceNLPAnalysis") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
         .getOrCreate()
 
     print("=" * 60)
-    print("  抖音电商评价NLP分析作业")
+    print("  电商数据洞察平台 - 评价NLP分析作业")
     print("=" * 60)
 
     try:

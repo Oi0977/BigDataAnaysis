@@ -26,6 +26,10 @@ spark-warehouse/
 metastore_db/
 derby.log
 
+# Airflow
+logs/
+plugins/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -352,12 +352,12 @@ class NLPGenerator:
                 try:
                     with open(filepath, 'r', encoding='utf-8') as f:
                         self.templates[template_type] = json.load(f)
-                    print(f"✓ 已加载模板: {filename}")
+                    print(f"[OK] 已加载模板: {filename}")
                 except Exception as e:
-                    print(f"⚠ 加载模板失败 {filename}: {e}")
+                    print(f"[警告] 加载模板失败 {filename}: {e}")
                     self.templates[template_type] = {}
             else:
-                print(f"⚠ 模板文件不存在: {filepath}")
+                print(f"[警告] 模板文件不存在: {filepath}")
                 print(f"  将使用内置默认模板")
 
         # 如果某个品类在文件中没有模板，使用默认模板

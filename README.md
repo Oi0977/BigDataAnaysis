@@ -1,54 +1,52 @@
-# 抖音电商竞品智能分析与AI素材工厂
+# 电商数据洞察平台
 
-一站式竞品智能分析与AI广告素材生成服务，解决商家"不知道竞品什么卖得好、不知道文案怎么写、不知道产品卖点怎么优化"三大痛点。
+一站式电商数据分析与洞察平台，帮助商家了解市场趋势、分析竞品表现、挖掘用户需求。
 
 ## 技术栈
 
 - **前端：** Vue3 + ECharts
 - **后端：** FastAPI + Python 3.12
 - **大数据：** Kafka + Spark + HDFS + HBase + Elasticsearch
+- **调度：** Apache Airflow（自动化数据管道）
 - **部署：** Docker + Docker Compose
 - **包管理：** uv
 
 ## 快速开始
 
-### 1. 启动大数据组件
+### 1. 启动所有服务
 
 ```powershell
-docker-compose up -d
+# 首次启动需要初始化 Airflow 数据库
+docker compose up airflow-init
+
+# 启动所有服务（包含 Airflow 调度器）
+docker compose up -d
 ```
 
-### 2. 初始化数据
+### 2. 访问应用
 
-在 PyCharm 中运行 `scripts/init_data.py`，将 mock 数据导入 HBase 和 Elasticsearch。
+- **前端界面：** http://localhost
+- **后端API：** http://localhost:8000/docs
+- **Airflow 调度器：** http://localhost:8080（用户名/密码：airflow/airflow）
 
-### 3. 启动后端
+### 3. 手动触发一次数据管道
 
 ```powershell
-cd backend
-uv run uvicorn app.main:app --reload --port 8000
+# 方式1：通过 Airflow Web 界面
+# 访问 http://localhost:8080，找到 douyin_etl_pipeline DAG，点击播放按钮
+
+# 方式2：通过命令行
+docker compose exec airflow-scheduler airflow dags trigger douyin_etl_pipeline
 ```
-
-### 4. 启动前端
-
-```powershell
-cd frontend
-npm run dev
-```
-
-### 5. 访问应用
-
-- 前端：http://localhost:3000
-- 后端API：http://localhost:8000/docs
 
 ## 功能模块
 
-1. **数据监控大屏** - 实时展示爬取量、品类分布、爆款统计
+1. **数据概览** - 实时展示商品数量、品类分布、销售趋势
 2. **爆款分析** - 分析爆款商品，计算爆款指数
 3. **差评分析** - 分析差评高频词，生成痛点报告
-4. **卖点推荐** - 基于竞品差评，反向生成产品优化卖点
-5. **相似爆款检索** - ES语义检索，找到最相关的参考爆款
-6. **AI文案生成** - 大模型参考爆款文案，生成专属广告文案
+4. **趋势分析** - 月度销量趋势、品类增长趋势
+5. **评价分析** - 情感分析、关键词提取、主题建模
+6. **竞品对比** - 多维度竞品数据对比
 
 ## 项目结构
 
@@ -59,6 +57,7 @@ BigHomework/
 ├── spark-jobs/        # Spark作业
 ├── scripts/           # 数据初始化等脚本
 ├── mock-data/         # Mock数据
+├── dags/              # Airflow DAG 文件
 ├── docker/            # Docker配置文件
 ├── docker-compose.yml # Docker编排
 └── docs/              # 文档
@@ -68,9 +67,9 @@ BigHomework/
 
 ### 环境准备
 
-1. 安装Docker Desktop
-2. 安装uv（Python包管理器）
-3. 安装Node.js（前端开发）
+1. 安装 Docker Desktop
+2. 安装 uv（Python包管理器）
+3. 安装 Node.js（前端开发）
 
 ### 后端开发
 
@@ -109,7 +108,7 @@ cd backend
 uv run pytest tests/ -v
 ```
 
-## Docker部署
+## Docker 部署
 
 ### 服务列表
 
@@ -118,51 +117,69 @@ uv run pytest tests/ -v
 | frontend | 80 | Vue3前端 |
 | backend | 8000 | FastAPI后端 |
 | kafka | 9094 | 消息队列 |
-| spark-master | 7077, 8080 | Spark主节点 |
-| spark-worker | 8081 | Spark工作节点 |
+| spark-master | 7077, 8081 | Spark主节点 |
+| spark-worker | 8082 | Spark工作节点 |
 | hdfs-namenode | 9870, 9000 | HDFS主节点 |
 | hdfs-datanode | 9864 | HDFS数据节点 |
 | hbase-master | 16010, 16000, 9090 | HBase主节点 |
 | hbase-regionserver | 16020, 16030 | HBase区域服务器 |
 | zookeeper | 2181 | Zookeeper |
-| elasticsearch | 9200, 9300 | 搜索引擎（含IK中文分词） |
+| elasticsearch | 9200, 9300 | 搜索引擎 |
+| postgres | 5432 | Airflow 元数据库 |
+| redis | 6379 | Airflow 消息队列 |
+| airflow-webserver | 8080 | Airflow Web界面 |
+| airflow-scheduler | - | Airflow 调度器 |
+| airflow-worker | - | Airflow 工作节点 |
 
 ### 常用命令
 
 ```powershell
-# 启动所有大数据组件
-docker-compose up -d
+# 启动所有服务
+docker compose up -d
 
 # 停止所有服务
-docker-compose down
+docker compose down
 
 # 停止并删除数据卷
-docker-compose down -v
+docker compose down -v
 
 # 查看容器状态
-docker-compose ps
+docker compose ps
 
 # 查看某个服务日志
-docker-compose logs -f elasticsearch
+docker compose logs -f elasticsearch
 
 # 重建某个服务
-docker-compose up -d --build elasticsearch
+docker compose up -d --build elasticsearch
+
+# 手动触发数据管道
+docker compose exec airflow-scheduler airflow dags trigger douyin_etl_pipeline
 ```
+
+## 自动化调度
+
+项目使用 Apache Airflow 实现自动化数据管道：
+
+- **调度频率：** 每天凌晨 2:00 自动执行
+- **执行流程：** 生成数据 → 初始化存储 → 上传HDFS → Spark分析 → 计算指标
+- **失败重试：** 3次，间隔5分钟
+- **监控界面：** http://localhost:8080
 
 ## 数据来源
 
-本项目使用Mock数据进行演示，包含：
-- 100+商品数据
-- 300+差评数据
-- 覆盖8个品类
+本项目使用 Mock 数据进行演示，包含：
+- 100+ 商品数据
+- 1000+ 评价数据
+- 36000+ 日销量数据
+- 覆盖 8 个品类
 
 ## 创新点
 
-1. **双维度竞品分析** - 不仅分析爆款好在哪里，更分析竞品差在哪里
-2. **反向卖点提炼** - 从竞品差评中挖掘用户痛点，转化为自身产品卖点
-3. **完整大数据链路** - 采集→缓冲→计算→存储→检索→应用→可视化全链路打通
-4. **AI + 大数据融合** - 大数据提供洞察，AI提供生成能力，二者深度结合
-5. **真实商业价值** - 场景贴近实际，中小商家真能用得上
+1. **完整大数据链路** - 采集 → 缓冲 → 计算 → 存储 → 检索 → 应用 → 可视化全链路打通
+2. **AI + 大数据融合** - Spark进行大规模数据处理，NLP进行情感分析和关键词提取
+3. **自动化调度** - Airflow实现定时自动执行，无需人工干预
+4. **多维度分析** - 从商品、品类、时间等多个维度进行深度分析
+5. **实时可视化** - ECharts实现数据实时展示，直观易懂
 
 ## 许可证
 

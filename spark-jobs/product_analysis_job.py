@@ -447,13 +447,13 @@ def main():
     # 创建Spark会话（支持环境变量切换master）
     master_url = os.environ.get("SPARK_MASTER", "local[2]")
     spark = SparkSession.builder \
-        .appName("DouyinProductAnalysis") \
+        .appName("EcommerceProductAnalysis") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
         .getOrCreate()
 
     print("=" * 60)
-    print("  抖音电商商品分析作业")
+    print("  电商数据洞察平台 - 商品分析作业")
     print("=" * 60)
 
     try:

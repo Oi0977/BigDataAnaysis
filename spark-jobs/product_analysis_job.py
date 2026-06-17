@@ -367,25 +367,30 @@ def compute_hot_score(spark: SparkSession, products_df, sales_metrics, review_me
                     when(col("monthly_growth").isNull(), lit(0.0))
                     .otherwise(col("monthly_growth")))
 
-    # 3. 计算各维度得分（绝对值计算）
+    # 3. 计算品类内最大值（用于比例法）
+    from pyspark.sql.window import Window
+    category_max_window = Window.partitionBy("category")
+    combined = combined \
+        .withColumn("category_max_sales",
+                    spark_max("total_sales").over(category_max_window)) \
+        .withColumn("category_max_reviews",
+                    spark_max("review_count").over(category_max_window))
+
+    # 4. 计算各维度得分（品类内比例法）
     combined = combined \
         .withColumn("sales_score",
-                    when(col("total_sales") < 1000, lit(0.2))
-                    .when(col("total_sales") < 5000, lit(0.4))
-                    .when(col("total_sales") < 10000, lit(0.6))
-                    .when(col("total_sales") < 50000, lit(0.8))
-                    .otherwise(lit(1.0))) \
+                    when(col("category_max_sales") > 0,
+                         col("total_sales") / col("category_max_sales"))
+                    .otherwise(lit(0.0))) \
         .withColumn("growth_score",
                     when(col("monthly_growth") / 100 > 1.0, lit(1.0))
                     .when(col("monthly_growth") / 100 < 0.0, lit(0.0))
                     .otherwise(col("monthly_growth") / 100)) \
         .withColumn("rating_score", col("avg_rating") / 5.0) \
         .withColumn("review_score",
-                    when(col("review_count") < 10, lit(0.2))
-                    .when(col("review_count") < 50, lit(0.4))
-                    .when(col("review_count") < 100, lit(0.6))
-                    .when(col("review_count") < 200, lit(0.8))
-                    .otherwise(lit(1.0)))
+                    when(col("category_max_reviews") > 0,
+                         col("review_count") / col("category_max_reviews"))
+                    .otherwise(lit(0.0)))
 
     # 5. 计算综合爆款指数（0-1范围）
     combined = combined.withColumn(

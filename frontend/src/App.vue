@@ -1,25 +1,42 @@
 <template>
   <div id="app">
-    <nav class="navbar">
-      <div class="navbar-brand">
-        <div class="logo-container">
-          <span class="logo-icon">📊</span>
-          <div class="logo-glow"></div>
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="#4F6EF7"/>
+              <path d="M7 14L11 18L21 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="logo-text">竞品智能分析</span>
         </div>
-        <span class="title">抖音电商竞品智能分析</span>
       </div>
-      <div class="navbar-menu">
+      <div class="sidebar-nav">
         <router-link to="/" class="nav-item">
-          <span class="nav-icon">🏠</span>
-          <span class="nav-text">首页</span>
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>数据概览</span>
         </router-link>
         <router-link to="/analysis" class="nav-item">
-          <span class="nav-icon">📈</span>
-          <span class="nav-text">数据分析</span>
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+          </svg>
+          <span>数据分析</span>
         </router-link>
       </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-badge">
+          <span class="badge-dot"></span>
+          <span>大数据平台 v1.0</span>
+        </div>
+      </div>
     </nav>
-    <main class="main-content">
+    <main class="main-area">
       <router-view />
     </main>
   </div>
@@ -32,23 +49,47 @@ export default {
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+/* ===== Design System: Professional E-commerce Analytics ===== */
 
 :root {
-  --bg-primary: #0a0e17;
-  --bg-secondary: #111827;
-  --bg-card: #1a2332;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --accent-cyan: #00f5ff;
-  --accent-purple: #a855f7;
-  --accent-pink: #ec4899;
-  --accent-green: #10b981;
-  --gradient-primary: linear-gradient(135deg, #00f5ff 0%, #a855f7 100%);
-  --gradient-secondary: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
-  --glow-cyan: 0 0 20px rgba(0, 245, 255, 0.5);
-  --glow-purple: 0 0 20px rgba(168, 85, 247, 0.5);
-  --border-glow: 1px solid rgba(0, 245, 255, 0.3);
+  /* Colors */
+  --color-primary: #4F6EF7;
+  --color-primary-light: #7B93FF;
+  --color-primary-bg: #EEF1FE;
+  --color-success: #22C55E;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-danger: #EF4444;
+  --color-danger-bg: #FEF2F2;
+  --color-orange: #F97316;
+
+  /* Neutrals */
+  --bg-page: #F5F6FA;
+  --bg-white: #FFFFFF;
+  --bg-hover: #F8F9FC;
+  --border: #E8ECF1;
+  --border-light: #F0F2F5;
+
+  /* Text */
+  --text-title: #1A2138;
+  --text-body: #4A5568;
+  --text-secondary: #8492A6;
+  --text-muted: #B0BEC5;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.04);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Transitions */
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -58,171 +99,163 @@ export default {
 }
 
 body {
-  font-family: 'Rajdhani', sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-body);
   min-height: 100vh;
   overflow-x: hidden;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background:
-    radial-gradient(ellipse at 20% 20%, rgba(0, 245, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: -1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   min-height: 100vh;
-}
-
-.navbar {
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(20px);
-  border-bottom: var(--border-glow);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
-
-.navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.logo-container {
   position: relative;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: 220px;
+  background: var(--bg-white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-header {
+  padding: 1.5rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.logo {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.75rem;
 }
 
-.logo-icon {
-  font-size: 2rem;
-  z-index: 1;
-}
-
-.logo-glow {
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  background: var(--gradient-primary);
-  border-radius: 50%;
-  filter: blur(15px);
-  opacity: 0.6;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.8;
-  }
-}
-
-.title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
+.logo-text {
+  font-size: 1rem;
   font-weight: 700;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 0 30px rgba(0, 245, 255, 0.5);
+  color: var(--text-title);
+  letter-spacing: -0.01em;
 }
 
-.navbar-menu {
+.sidebar-nav {
+  padding: 0.75rem;
+  flex: 1;
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-item {
-  color: var(--text-secondary);
-  text-decoration: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.nav-item:hover::before {
-  left: 100%;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.925rem;
+  font-weight: 500;
+  transition: all var(--transition);
 }
 
 .nav-item:hover {
-  color: var(--accent-cyan);
-  border-color: rgba(0, 245, 255, 0.3);
-  box-shadow: var(--glow-cyan);
+  background: var(--bg-hover);
+  color: var(--text-title);
 }
 
 .nav-item.router-link-active {
-  color: var(--accent-cyan);
-  background: rgba(0, 245, 255, 0.1);
-  border-color: rgba(0, 245, 255, 0.5);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .nav-icon {
-  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
-.nav-text {
-  font-weight: 500;
+.sidebar-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-light);
 }
 
-.main-content {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+.sidebar-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
-/* 全局滚动条样式 */
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: dotPulse 2s ease infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ===== Main Area ===== */
+.main-area {
+  margin-left: 220px;
+  width: calc(100vw - 220px);
+  min-height: 100vh;
+  padding: 1.75rem 2rem;
+}
+
+/* ===== Global Scrollbar ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gradient-primary);
-  border-radius: 4px;
+  background: var(--text-muted);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-cyan);
+  background: var(--text-secondary);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+  }
+  .logo-text,
+  .nav-item span,
+  .sidebar-badge span:last-child {
+    display: none;
+  }
+  .sidebar-header {
+    padding: 1rem 0.5rem;
+    display: flex;
+    justify-content: center;
+  }
+  .nav-item {
+    justify-content: center;
+    padding: 0.7rem;
+  }
+  .main-area {
+    margin-left: 60px;
+    width: calc(100vw - 60px);
+    padding: 1rem;
+  }
 }
 </style>

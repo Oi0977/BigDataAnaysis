@@ -1,7 +1,7 @@
 <template>
   <div class="selling-points">
     <div class="section-header">
-      <h2 class="section-title">💡 卖点推荐</h2>
+      <h2 class="section-title">卖点推荐</h2>
       <div class="filter-group">
         <select v-model="selectedCategory" class="filter-select" @change="loadSellingPoints">
           <option value="">选择品类</option>
@@ -19,7 +19,7 @@
         class="selling-point-card"
       >
         <div class="point-header">
-          <span class="point-priority" :class="point.priority">{{ point.priority }}</span>
+          <span class="point-priority" :class="point.priority">{{ point.priority }}优先级</span>
           <span class="point-mentions" v-if="point.mentionCount">{{ point.mentionCount }}次提及</span>
           <span class="point-index">#{{ index + 1 }}</span>
         </div>
@@ -87,14 +87,8 @@ export default {
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .section-header {
@@ -105,143 +99,151 @@ export default {
 }
 
 .section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
-  color: var(--accent-green);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-title);
 }
 
 .filter-select {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  color: var(--text-primary);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  color: var(--text-body);
+  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition);
+  font-family: inherit;
 }
 
 .filter-select:hover,
 .filter-select:focus {
-  border-color: var(--accent-green);
+  border-color: var(--color-primary);
   outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-bg);
 }
 
 .selling-points-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .selling-point-card {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: all var(--transition);
 }
 
 .selling-point-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
 }
 
 .point-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .point-priority {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
-.point-mentions {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-.point-example {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255,255,255,0.03);
-  border-radius: 6px;
-  border-left: 3px solid var(--accent-pink);
-}
-
 .point-priority.高 {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border: 1px solid #ef4444;
+  background: #FEF2F2;
+  color: #EF4444;
+  border: 1px solid #FECACA;
 }
 
 .point-priority.中 {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-  border: 1px solid #f59e0b;
+  background: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.point-mentions {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: 'Space Mono', monospace;
 }
 
 .point-index {
-  font-family: 'Orbitron', sans-serif;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
 }
 
 .point-pain {
-  font-size: 1.1rem;
-  color: var(--accent-cyan);
-  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 0.5rem;
 }
 
 .point-suggestion {
   color: var(--text-secondary);
   line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+.point-example {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--bg-white);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-primary);
+  line-height: 1.5;
 }
 
 .pain-points-section {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
-  padding: 1.5rem;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
 }
 
 .section-subtitle {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.2rem;
-  color: var(--accent-purple);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
   margin-bottom: 1rem;
 }
 
 .pain-points-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .pain-point-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
 }
 
 .pain-point-name {
-  color: var(--text-primary);
+  color: var(--text-body);
+  font-size: 0.85rem;
 }
 
 .pain-point-count {
-  color: var(--accent-purple);
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.9rem;
+  color: var(--color-primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 </style>

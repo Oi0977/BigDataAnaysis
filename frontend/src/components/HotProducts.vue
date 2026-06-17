@@ -1,7 +1,7 @@
 <template>
   <div class="hot-products">
     <div class="section-header">
-      <h2 class="section-title">🔥 爆款分析</h2>
+      <h2 class="section-title">爆款分析</h2>
       <div class="filter-group">
         <select v-model="selectedCategory" class="filter-select" @change="onCategoryChange">
           <option value="">全部品类</option>
@@ -48,8 +48,10 @@
           @click="openDetail(product)"
         >
           <div class="product-body">
-            <span class="hot-badge">{{ (product.hot_score || 0).toFixed(2) }}</span>
-            <span class="product-id">{{ product.product_id }}</span>
+            <div class="product-top">
+              <span class="product-id">{{ product.product_id }}</span>
+              <span class="hot-badge">{{ (product.hot_score || 0).toFixed(2) }}</span>
+            </div>
             <h3 class="product-name">{{ product.name }}</h3>
             <p class="product-category">{{ product.brand }} · {{ product.category }}</p>
             <div class="product-stats">
@@ -68,7 +70,7 @@
                 <span class="stat-value">{{ ((product.positive_rate || 0) * 100).toFixed(1) }}%</span>
               </div>
             </div>
-            <p class="click-hint">点击查看详细分析 →</p>
+            <p class="click-hint">点击查看详情</p>
           </div>
         </div>
       </div>
@@ -90,7 +92,7 @@
     <!-- 详情弹窗 -->
     <div v-if="detailProduct" class="modal-overlay" @click.self="closeDetail">
       <div class="modal-content">
-        <button class="modal-close" @click="closeDetail">✕</button>
+        <button class="modal-close" @click="closeDetail">&times;</button>
 
         <div class="modal-header">
           <div class="modal-info">
@@ -109,7 +111,7 @@
 
         <!-- 商品信息 -->
         <div class="modal-section">
-          <h3 class="modal-section-title tag-mock-inline">商品信息</h3>
+          <h3 class="modal-section-title">商品信息</h3>
           <div class="modal-grid">
             <div class="modal-stat">
               <span class="modal-stat-label">品牌</span>
@@ -140,7 +142,7 @@
 
         <!-- 统计分析 -->
         <div class="modal-section">
-          <h3 class="modal-section-title tag-spark-inline">统计分析</h3>
+          <h3 class="modal-section-title">统计分析</h3>
           <div class="modal-grid">
             <div class="modal-stat highlight full-width">
               <span class="modal-stat-label">爆款指数</span>
@@ -225,11 +227,8 @@ export default {
       total: 0,
       currentPage: 1,
       pageSize: 20,
-      // 图表数据（全量数据用于图表分析）
       chartProducts: [],
-      // 图表实例引用
       chartInstances: [],
-      // 详情弹窗
       detailProduct: null,
       monthlyChart: null
     }
@@ -265,7 +264,6 @@ export default {
     this.disposeCharts()
   },
   methods: {
-    // 加载全量数据（用于图表分析）
     async loadAllData() {
       try {
         const res = await getHotProducts({ limit: 100, page: 1 })
@@ -281,7 +279,6 @@ export default {
         console.error('加载全量数据失败:', error)
       }
     },
-    // 分页：从 chartProducts 中取当前页数据
     updatePageProducts() {
       const start = (this.currentPage - 1) * this.pageSize
       const end = start + this.pageSize
@@ -341,7 +338,6 @@ export default {
         } else if (Array.isArray(trend)) {
           months = trend
         }
-        // 生成日期标签（近30天）
         const now = new Date()
         const labels = []
         for (let i = months.length - 1; i >= 0; i--) {
@@ -351,67 +347,58 @@ export default {
         }
         this.monthlyChart.setOption({
           backgroundColor: 'transparent',
-          textStyle: { fontFamily: 'Rajdhani, sans-serif', color: '#94a3b8' },
-          tooltip: { trigger: 'axis', formatter: p => `${p[0].name}<br/>销量: ${p[0].value.toLocaleString()}` },
+          textStyle: { fontFamily: 'DM Sans, Noto Sans SC, sans-serif', color: '#4A5568' },
+          tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E8ECF1', borderWidth: 1, textStyle: { color: '#1A2138' }, formatter: p => `${p[0].name}<br/>销量: ${p[0].value.toLocaleString()}` },
           grid: { top: 30, right: 20, bottom: 30, left: 50, containLabel: true },
-          xAxis: { type: 'category', data: labels, axisLabel: { color: '#94a3b8', rotate: 45, fontSize: 10 } },
-          yAxis: { type: 'value', axisLabel: { color: '#94a3b8' } },
+          xAxis: { type: 'category', data: labels, axisLabel: { color: '#8492A6', rotate: 45, fontSize: 10 }, axisLine: { lineStyle: { color: '#E8ECF1' } }, axisTick: { show: false } },
+          yAxis: { type: 'value', axisLabel: { color: '#8492A6' }, splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } }, axisLine: { show: false } },
           series: [{
             type: 'line', data: months, smooth: true,
-            lineStyle: { color: '#00f5ff', width: 2 },
+            lineStyle: { color: '#4F6EF7', width: 2 },
             areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(0, 245, 255, 0.3)' }, { offset: 1, color: 'rgba(0, 245, 255, 0.02)' }
+              { offset: 0, color: 'rgba(79, 110, 247, 0.15)' }, { offset: 1, color: 'rgba(79, 110, 247, 0.01)' }
             ]) },
-            itemStyle: { color: '#00f5ff' },
+            itemStyle: { color: '#4F6EF7' },
             symbol: 'circle', symbolSize: 4
           }]
         })
       })
     },
-    // ========== 图表相关方法 ==========
     disposeCharts() {
       this.chartInstances.forEach(chart => {
-        if (chart && !chart.isDisposed()) {
-          chart.dispose()
-        }
+        if (chart && !chart.isDisposed()) chart.dispose()
       })
       this.chartInstances = []
     },
     handleResize() {
       this.chartInstances.forEach(chart => {
-        if (chart && !chart.isDisposed()) {
-          chart.resize()
-        }
+        if (chart && !chart.isDisposed()) chart.resize()
       })
     },
-    // 创建通用的图表基础配置
     getBaseOption() {
       return {
         backgroundColor: 'transparent',
-        textStyle: {
-          fontFamily: 'Rajdhani, sans-serif',
-          color: '#94a3b8'
-        },
-        grid: {
-          top: 40,
-          right: 20,
-          bottom: 30,
-          left: 50,
-          containLabel: true
-        }
+        textStyle: { fontFamily: 'DM Sans, Noto Sans SC, sans-serif', color: '#4A5568' },
+        grid: { top: 40, right: 20, bottom: 30, left: 50, containLabel: true }
       }
     },
-    // 品类爆款数量分布 - 柱状图
-    renderCategoryBarChart() {
-      if (this.chartInstances[0]) {
-        this.chartInstances[0].dispose()
+    getTooltip() {
+      return {
+        backgroundColor: '#fff',
+        borderColor: '#E8ECF1',
+        borderWidth: 1,
+        textStyle: { color: '#1A2138', fontSize: 13 },
+        shadowBlur: 10,
+        shadowColor: 'rgba(0,0,0,0.08)'
       }
+    },
+    renderCategoryBarChart() {
+      if (this.chartInstances[0]) this.chartInstances[0].dispose()
       const dom = this.$refs.categoryBarChart
       if (!dom) return
       const chart = echarts.init(dom)
       this.chartInstances[0] = chart
 
-      // 按品类统计数量
       const categoryCount = {}
       this.chartProducts.forEach(p => {
         categoryCount[p.category] = (categoryCount[p.category] || 0) + 1
@@ -421,70 +408,55 @@ export default {
 
       chart.setOption({
         ...this.getBaseOption(),
-        tooltip: {
-          trigger: 'axis',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: 'rgba(0, 245, 255, 0.3)',
-          textStyle: { color: '#e2e8f0' }
-        },
+        tooltip: { ...this.getTooltip(), trigger: 'axis' },
         xAxis: {
-          type: 'category',
-          data: sortedCategories,
-          axisLabel: { color: '#94a3b8', fontSize: 12 },
-          axisLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.2)' } },
+          type: 'category', data: sortedCategories,
+          axisLabel: { color: '#8492A6', fontSize: 12 },
+          axisLine: { lineStyle: { color: '#E8ECF1' } },
           axisTick: { show: false }
         },
         yAxis: {
-          type: 'value',
-          name: '数量',
-          nameTextStyle: { color: '#94a3b8' },
-          axisLabel: { color: '#94a3b8' },
-          splitLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.08)' } },
+          type: 'value', name: '数量',
+          nameTextStyle: { color: '#8492A6', fontSize: 12 },
+          axisLabel: { color: '#8492A6' },
+          splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } },
           axisLine: { show: false }
         },
         series: [{
-          type: 'bar',
-          data: counts,
-          barWidth: '50%',
+          type: 'bar', data: counts, barWidth: '50%',
           itemStyle: {
             borderRadius: [4, 4, 0, 0],
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#00f5ff' },
-              { offset: 1, color: 'rgba(0, 245, 255, 0.2)' }
+              { offset: 0, color: '#4F6EF7' },
+              { offset: 1, color: '#7B93FF' }
             ])
           },
           emphasis: {
             itemStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#a855f7' },
-                { offset: 1, color: 'rgba(168, 85, 247, 0.3)' }
+                { offset: 0, color: '#3D5BD9' },
+                { offset: 1, color: '#4F6EF7' }
               ])
             }
           }
         }]
       })
     },
-    // 爆款指数 vs 销量 - 散点图
     renderScatterChart() {
-      if (this.chartInstances[1]) {
-        this.chartInstances[1].dispose()
-      }
+      if (this.chartInstances[1]) this.chartInstances[1].dispose()
       const dom = this.$refs.scatterChart
       if (!dom) return
       const chart = echarts.init(dom)
       this.chartInstances[1] = chart
 
-      // 按品类分组散点
       const categoryColorMap = {
-        '手机': '#00f5ff', '电脑': '#a855f7', '服装': '#ec4899',
-        '美妆': '#f59e0b', '食品': '#10b981', '家居': '#6366f1',
-        '数码': '#ef4444', '运动': '#06b6d4'
+        '手机': '#4F6EF7', '电脑': '#8B5CF6', '服装': '#EC4899',
+        '美妆': '#F59E0B', '食品': '#22C55E', '家居': '#6366F1',
+        '数码': '#EF4444', '运动': '#06B6D4'
       }
       const seriesData = {}
       this.chartProducts.forEach(p => {
-        if (!seriesData[p.category]) {
-          seriesData[p.category] = []
-        }
+        if (!seriesData[p.category]) seriesData[p.category] = []
         seriesData[p.category].push([p.total_sales || 0, p.hot_score, p.name, p.price])
       })
 
@@ -492,66 +464,49 @@ export default {
         name: cat,
         type: 'scatter',
         data: seriesData[cat],
-        symbolSize: 12,
-        itemStyle: {
-          color: categoryColorMap[cat] || '#94a3b8',
-          shadowBlur: 6,
-          shadowColor: (categoryColorMap[cat] || '#94a3b8') + '80'
-        },
-        emphasis: {
-          itemStyle: { borderColor: '#fff', borderWidth: 2 }
-        }
+        symbolSize: 10,
+        itemStyle: { color: categoryColorMap[cat] || '#8492A6' },
+        emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 2, shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.15)' } }
       }))
 
       chart.setOption({
         ...this.getBaseOption(),
         tooltip: {
-          trigger: 'item',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: 'rgba(0, 245, 255, 0.3)',
-          textStyle: { color: '#e2e8f0' },
+          ...this.getTooltip(), trigger: 'item',
           formatter(params) {
             const [sales, hotScore, name, price] = params.data
             return `<b>${name}</b><br/>品类: ${params.seriesName}<br/>销量: ${sales.toLocaleString()}<br/>爆款指数: ${hotScore.toFixed(2)}<br/>价格: ¥${price}`
           }
         },
         legend: {
-          type: 'scroll',
-          top: 0,
-          right: 0,
-          textStyle: { color: '#94a3b8', fontSize: 11 },
-          pageTextStyle: { color: '#94a3b8' }
+          type: 'scroll', top: 0, right: 0,
+          textStyle: { color: '#8492A6', fontSize: 11 },
+          pageTextStyle: { color: '#8492A6' }
         },
         xAxis: {
-          type: 'value',
-          name: '销量',
-          nameTextStyle: { color: '#94a3b8' },
-          axisLabel: { color: '#94a3b8', formatter: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v },
-          splitLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.08)' } },
-          axisLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.2)' } }
+          type: 'value', name: '销量',
+          nameTextStyle: { color: '#8492A6' },
+          axisLabel: { color: '#8492A6', formatter: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v },
+          splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } },
+          axisLine: { lineStyle: { color: '#E8ECF1' } }
         },
         yAxis: {
-          type: 'value',
-          name: '爆款指数',
-          nameTextStyle: { color: '#94a3b8' },
-          axisLabel: { color: '#94a3b8' },
-          splitLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.08)' } },
+          type: 'value', name: '爆款指数',
+          nameTextStyle: { color: '#8492A6' },
+          axisLabel: { color: '#8492A6' },
+          splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } },
           axisLine: { show: false }
         },
         series
       })
     },
-    // 各品类平均爆款指数 - 横向柱状图
     renderAvgHotScoreChart() {
-      if (this.chartInstances[2]) {
-        this.chartInstances[2].dispose()
-      }
+      if (this.chartInstances[2]) this.chartInstances[2].dispose()
       const dom = this.$refs.avgHotScoreChart
       if (!dom) return
       const chart = echarts.init(dom)
       this.chartInstances[2] = chart
 
-      // 按品类计算平均爆款指数
       const categoryHotSum = {}
       const categoryCount = {}
       this.chartProducts.forEach(p => {
@@ -560,7 +515,6 @@ export default {
       })
       const categories = Object.keys(categoryHotSum)
       const avgScores = categories.map(c => +(categoryHotSum[c] / categoryCount[c]).toFixed(2))
-      // 按平均值排序
       const sorted = categories
         .map((c, i) => ({ name: c, value: avgScores[i] }))
         .sort((a, b) => a.value - b.value)
@@ -568,35 +522,25 @@ export default {
       chart.setOption({
         ...this.getBaseOption(),
         tooltip: {
-          trigger: 'axis',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: 'rgba(168, 85, 247, 0.3)',
-          textStyle: { color: '#e2e8f0' },
+          ...this.getTooltip(), trigger: 'axis',
           formatter(params) {
             const p = params[0]
             return `${p.name}<br/>平均爆款指数: <b>${p.value.toFixed(2)}</b>`
           }
         },
-        grid: {
-          top: 20,
-          right: 30,
-          bottom: 20,
-          left: 10,
-          containLabel: true
-        },
+        grid: { top: 20, right: 30, bottom: 20, left: 10, containLabel: true },
         xAxis: {
-          type: 'value',
-          name: '平均爆款指数',
-          nameTextStyle: { color: '#94a3b8' },
-          axisLabel: { color: '#94a3b8' },
-          splitLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.08)' } },
-          axisLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.2)' } }
+          type: 'value', name: '平均爆款指数',
+          nameTextStyle: { color: '#8492A6' },
+          axisLabel: { color: '#8492A6' },
+          splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } },
+          axisLine: { lineStyle: { color: '#E8ECF1' } }
         },
         yAxis: {
           type: 'category',
           data: sorted.map(s => s.name),
-          axisLabel: { color: '#94a3b8', fontSize: 12 },
-          axisLine: { lineStyle: { color: 'rgba(0, 245, 255, 0.2)' } },
+          axisLabel: { color: '#8492A6', fontSize: 12 },
+          axisLine: { lineStyle: { color: '#E8ECF1' } },
           axisTick: { show: false }
         },
         series: [{
@@ -604,35 +548,29 @@ export default {
           data: sorted.map(s => s.value),
           barWidth: '55%',
           label: {
-            show: true,
-            position: 'right',
-            color: '#e2e8f0',
-            fontSize: 12,
-            fontFamily: 'Orbitron, sans-serif'
+            show: true, position: 'right',
+            color: '#4A5568', fontSize: 12, fontWeight: 600
           },
           itemStyle: {
             borderRadius: [0, 4, 4, 0],
             color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              { offset: 0, color: 'rgba(168, 85, 247, 0.3)' },
-              { offset: 1, color: '#a855f7' }
+              { offset: 0, color: '#B6C4FF' },
+              { offset: 1, color: '#4F6EF7' }
             ])
           },
           emphasis: {
             itemStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                { offset: 0, color: 'rgba(0, 245, 255, 0.3)' },
-                { offset: 1, color: '#00f5ff' }
+                { offset: 0, color: '#3D5BD9' },
+                { offset: 1, color: '#3D5BD9' }
               ])
             }
           }
         }]
       })
     },
-    // 价格区间分布 - 饼图
     renderPricePieChart() {
-      if (this.chartInstances[3]) {
-        this.chartInstances[3].dispose()
-      }
+      if (this.chartInstances[3]) this.chartInstances[3].dispose()
       const dom = this.$refs.pricePieChart
       if (!dom) return
       const chart = echarts.init(dom)
@@ -645,7 +583,7 @@ export default {
         { name: '2000-5000', min: 2000, max: 5000 },
         { name: '5000+', min: 5000, max: Infinity }
       ]
-      const rangeColors = ['#00f5ff', '#a855f7', '#ec4899', '#f59e0b', '#10b981']
+      const rangeColors = ['#4F6EF7', '#8B5CF6', '#F97316', '#22C55E', '#EF4444']
       const pieData = priceRanges.map((range, idx) => {
         const count = this.chartProducts.filter(p => p.price >= range.min && p.price < range.max).length
         return { name: range.name, value: count, itemStyle: { color: rangeColors[idx] } }
@@ -654,40 +592,23 @@ export default {
       chart.setOption({
         ...this.getBaseOption(),
         tooltip: {
-          trigger: 'item',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: 'rgba(0, 245, 255, 0.3)',
-          textStyle: { color: '#e2e8f0' },
+          ...this.getTooltip(), trigger: 'item',
           formatter: '{b}: {c} 个 ({d}%)'
         },
         legend: {
-          orient: 'vertical',
-          right: 10,
-          top: 'center',
-          textStyle: { color: '#94a3b8', fontSize: 12 },
-          icon: 'circle',
-          itemWidth: 10,
-          itemHeight: 10
+          orient: 'vertical', right: 10, top: 'center',
+          textStyle: { color: '#4A5568', fontSize: 12 },
+          icon: 'circle', itemWidth: 10, itemHeight: 10
         },
         series: [{
           type: 'pie',
-          radius: ['40%', '70%'],
+          radius: ['42%', '72%'],
           center: ['40%', '50%'],
           avoidLabelOverlap: true,
-          label: {
-            show: true,
-            color: '#e2e8f0',
-            fontSize: 12,
-            formatter: '{b}\n{d}%'
-          },
-          labelLine: {
-            lineStyle: { color: 'rgba(148, 163, 184, 0.5)' }
-          },
+          label: { show: true, color: '#4A5568', fontSize: 12, formatter: '{b}\n{d}%' },
+          labelLine: { lineStyle: { color: '#B0BEC5' } },
           emphasis: {
-            itemStyle: {
-              shadowBlur: 20,
-              shadowColor: 'rgba(0, 245, 255, 0.5)'
-            }
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.1)' }
           },
           data: pieData
         }]
@@ -718,7 +639,7 @@ export default {
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
+  from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -732,9 +653,9 @@ export default {
 }
 
 .section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
-  color: var(--accent-cyan);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-title);
 }
 
 .filter-group {
@@ -745,28 +666,29 @@ export default {
 
 .result-count {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .filter-select {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  color: var(--text-primary);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  color: var(--text-body);
+  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition);
+  font-family: inherit;
 }
 
 .filter-select:hover,
 .filter-select:focus {
-  border-color: var(--accent-cyan);
+  border-color: var(--color-primary);
   outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-bg);
 }
 
-/* ========== 图表区域 ========== */
+/* ========== Charts ========== */
 .charts-section {
   margin-bottom: 2rem;
 }
@@ -774,111 +696,100 @@ export default {
 .chart-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .chart-card {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
-  transition: all 0.3s ease;
+  transition: all var(--transition);
 }
 
 .chart-card:hover {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 20px rgba(0, 245, 255, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.9rem;
-  color: var(--accent-cyan);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-title);
   margin-bottom: 0.75rem;
-  letter-spacing: 0.5px;
 }
 
 .chart-container {
   width: 100%;
-  height: 280px;
+  height: 260px;
 }
 
-/* ========== 商品列表 ========== */
+/* ========== Product List ========== */
 .products-section {
   margin-top: 1rem;
 }
 
 .sub-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.1rem;
-  color: var(--accent-purple);
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
 .product-card {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  transition: all 0.3s ease;
-  position: relative;
+  transition: all var(--transition);
   cursor: pointer;
 }
 
 .product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--glow-cyan);
-}
-
-.hot-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: linear-gradient(135deg, #ff6b35, #ff2e63);
-  color: #fff;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(255, 46, 99, 0.4);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-light);
 }
 
 .product-body {
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 1rem 1.25rem 1.125rem;
 }
 
-.product-id {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.product-name {
-  font-size: 1.15rem;
-  color: var(--text-primary);
-  margin: 0.3rem 0;
-}
-
-.product-category {
-  color: var(--accent-purple);
-  font-size: 0.85rem;
+.product-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.5rem;
 }
 
-.product-desc {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-bottom: 1rem;
+.product-id {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.hot-badge {
+  background: linear-gradient(135deg, #F97316, #EF4444);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.product-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 0.3rem;
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -886,11 +797,17 @@ export default {
   overflow: hidden;
 }
 
+.product-category {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
 .product-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-light);
   padding-top: 0.75rem;
 }
 
@@ -900,57 +817,82 @@ export default {
 
 .stat-label {
   display: block;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-bottom: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .stat-value {
   display: block;
-  color: var(--accent-cyan);
+  color: var(--text-title);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .stat-value.price {
-  color: #ff6b35;
+  color: var(--color-orange);
+}
+
+.growth-up {
+  color: var(--color-success);
+}
+
+.growth-down {
+  color: var(--color-danger);
 }
 
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
+.click-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  margin-top: 0.75rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.product-card:hover .click-hint {
+  opacity: 1;
+}
+
+/* ========== Pagination ========== */
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
+  gap: 0.35rem;
+  margin-top: 1.75rem;
 }
 
 .page-btn {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 6px;
-  padding: 0.5rem 0.85rem;
-  color: var(--text-primary);
-  font-size: 0.9rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.8rem;
+  color: var(--text-body);
+  font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition);
+  font-family: inherit;
 }
 
 .page-btn:hover:not(:disabled):not(.active) {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .page-btn.active {
-  background: var(--accent-cyan);
-  color: #000;
-  font-weight: 700;
-  border-color: var(--accent-cyan);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  border-color: var(--color-primary);
 }
 
 .page-btn:disabled {
@@ -961,158 +903,94 @@ export default {
 .page-btn.ellipsis {
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
-/* ========== 响应式布局 ========== */
-@media (max-width: 768px) {
-  .chart-row {
-    grid-template-columns: 1fr;
-  }
-  .chart-container {
-    height: 240px;
-  }
-  .products-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ========== 数据来源标签 ========== */
-.data-section {
-  margin: 0.5rem 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border-left: 3px solid;
-}
-
-.mock-data {
-  background: rgba(34, 197, 94, 0.08);
-  border-left-color: #22c55e;
-}
-
-.spark-data {
-  background: rgba(59, 130, 246, 0.08);
-  border-left-color: #3b82f6;
-}
-
-.data-tag {
-  display: inline-block;
-  font-size: 0.65rem;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-  letter-spacing: 0.5px;
-}
-
-.tag-mock {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-}
-
-.tag-spark {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
-}
-
-.data-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.data-item {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.data-item.price {
-  color: #ff6b35;
-  font-weight: 600;
-}
-
-.item-label {
-  color: var(--text-secondary);
-  margin-right: 0.3rem;
-}
-
-.item-value {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.growth-up {
-  color: #22c55e;
-}
-
-.growth-down {
-  color: #ef4444;
-}
-
-/* 卡片点击提示 */
-.click-hint {
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--accent-cyan);
-  margin-top: 0.75rem;
-  opacity: 0.7;
-}
-/* 详情弹窗 */
+/* ========== Modal ========== */
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center;
-  z-index: 1000; backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeInOverlay 0.2s ease;
 }
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .modal-content {
-  background: var(--bg-primary); border: var(--border-glow); border-radius: 16px;
-  width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 2rem;
+  background: var(--bg-white);
+  border-radius: var(--radius-xl);
+  width: 90%; max-width: 800px; max-height: 85vh;
+  overflow-y: auto;
+  padding: 2rem;
   position: relative;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease;
 }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .modal-close {
-  position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+  position: absolute; top: 1rem; right: 1rem;
+  background: var(--bg-hover); border: none;
   color: var(--text-secondary); font-size: 1.5rem; cursor: pointer;
-  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+  line-height: 1;
 }
-.modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
-.modal-header { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
-.modal-info { flex: 1; }
-.modal-id { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--text-secondary); }
-.modal-name { font-size: 1.5rem; color: var(--text-primary); margin: 0.3rem 0; }
-.modal-brand { color: var(--accent-purple); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+.modal-close:hover { background: var(--border); color: var(--text-title); }
+
+.modal-header { margin-bottom: 1.5rem; }
+.modal-id { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--text-muted); }
+.modal-name { font-size: 1.4rem; font-weight: 700; color: var(--text-title); margin: 0.3rem 0; }
+.modal-brand { color: var(--color-primary); font-size: 0.875rem; margin-bottom: 0.5rem; }
 .modal-desc { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; }
+
 .modal-section { margin-top: 1.5rem; }
 .modal-section-title {
-  font-family: 'Orbitron', sans-serif; font-size: 0.95rem; color: var(--accent-cyan);
-  margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.95rem; font-weight: 600; color: var(--text-title);
+  margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
-.tag-mock-inline { color: #22c55e; border-bottom-color: rgba(34,197,94,0.3); }
-.tag-spark-inline { color: #3b82f6; border-bottom-color: rgba(59,130,246,0.3); }
 .modal-chart { width: 100%; height: 250px; }
-.modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
+.modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.6rem; }
 .modal-stat {
-  background: var(--bg-secondary); border: var(--border-glow); border-radius: 8px;
+  background: var(--bg-page); border: 1px solid var(--border-light); border-radius: var(--radius-sm);
   padding: 0.75rem; text-align: center;
 }
-.modal-stat.highlight { border-color: var(--accent-cyan); }
-.modal-stat-label { display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem; }
-.modal-stat-value { display: block; font-size: 1.1rem; color: var(--text-primary); font-weight: 600; }
-.modal-stat-value.price { color: #ff6b35; }
-.modal-stat-value.hot { color: var(--accent-cyan); font-size: 1.3rem; }
+.modal-stat.highlight { border-color: var(--color-primary); background: var(--color-primary-bg); }
+.modal-stat-label { display: block; font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.modal-stat-value { display: block; font-size: 1.05rem; color: var(--text-title); font-weight: 600; }
+.modal-stat-value.price { color: var(--color-orange); }
+.modal-stat-value.hot { color: var(--color-primary); font-size: 1.4rem; }
 .modal-stat-value.tags { font-size: 0.8rem; word-break: break-all; }
-.modal-stat-value small { font-size: 0.7rem; color: var(--text-secondary); font-weight: 400; }
+.modal-stat-value small { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; }
 .modal-stat.full-width { grid-column: 1 / -1; text-align: left; }
+
 .score-breakdown { margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .score-bar-row { display: flex; align-items: center; gap: 0.5rem; }
-.score-label { min-width: 70px; font-size: 0.75rem; color: var(--text-secondary); }
-.score-bar-bg { flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+.score-label { min-width: 75px; font-size: 0.75rem; color: var(--text-secondary); }
+.score-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
 .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-.score-bar-fill.sales { background: linear-gradient(90deg, #00f5ff, #0ea5e9); }
-.score-bar-fill.growth { background: linear-gradient(90deg, #a855f7, #ec4899); }
-.score-bar-fill.rating { background: linear-gradient(90deg, #f59e0b, #f97316); }
-.score-bar-fill.review { background: linear-gradient(90deg, #10b981, #34d399); }
-.score-val { min-width: 28px; font-size: 0.75rem; color: var(--text-primary); text-align: right; font-family: 'Orbitron', sans-serif; }
+.score-bar-fill.sales { background: #4F6EF7; }
+.score-bar-fill.growth { background: #8B5CF6; }
+.score-bar-fill.rating { background: #F97316; }
+.score-bar-fill.review { background: #22C55E; }
+.score-val { min-width: 30px; font-size: 0.75rem; color: var(--text-title); text-align: right; font-family: 'Space Mono', monospace; font-weight: 600; }
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .chart-row { grid-template-columns: 1fr; }
+  .chart-container { height: 240px; }
+  .products-grid { grid-template-columns: 1fr; }
+}
 </style>

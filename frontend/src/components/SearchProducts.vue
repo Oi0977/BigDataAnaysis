@@ -1,20 +1,25 @@
 <template>
   <div class="search-products">
     <div class="section-header">
-      <h2 class="section-title">🔍 相似爆款检索</h2>
+      <h2 class="section-title">相似爆款检索</h2>
     </div>
 
     <div class="search-box">
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        placeholder="输入关键词搜索相似爆款..."
-        @keyup.enter="search"
-      />
+      <div class="search-input-wrap">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="输入关键词搜索相似爆款..."
+          @keyup.enter="search"
+        />
+      </div>
       <button class="search-btn" @click="search">
-        <span class="btn-icon">🔍</span>
-        <span class="btn-text">搜索</span>
+        搜索
       </button>
     </div>
 
@@ -27,16 +32,16 @@
           class="result-card"
         >
           <div class="result-header">
-            <span class="result-score">相关度: {{ product.score?.toFixed(2) }}</span>
+            <span class="result-score">相关度 {{ product.score?.toFixed(2) }}</span>
             <span class="result-id">{{ product.productId }}</span>
           </div>
           <h4 class="result-name">{{ product.name }}</h4>
           <p class="result-category">{{ product.category }}</p>
-          <p class="result-desc">{{ product.description?.substring(0, 60) }}...</p>
+          <p class="result-desc">{{ product.description?.substring(0, 80) }}...</p>
           <div class="result-stats">
             <div class="stat">
               <span class="stat-label">价格</span>
-              <span class="stat-value">¥{{ product.price }}</span>
+              <span class="stat-value price">¥{{ product.price }}</span>
             </div>
             <div class="stat">
               <span class="stat-label">原价</span>
@@ -52,8 +57,21 @@
     </div>
 
     <div class="empty-state" v-else-if="searched">
-      <span class="empty-icon">🔍</span>
+      <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
       <p class="empty-text">未找到相关商品</p>
+      <p class="empty-hint">试试其他关键词</p>
+    </div>
+
+    <div class="initial-state" v-else>
+      <svg class="initial-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <p class="initial-text">输入关键词开始搜索</p>
     </div>
   </div>
 </template>
@@ -94,14 +112,8 @@ export default {
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .section-header {
@@ -109,131 +121,139 @@ export default {
 }
 
 .section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
-  color: var(--accent-pink);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-title);
 }
 
 .search-box {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-bottom: 2rem;
 }
 
-.search-input {
+.search-input-wrap {
   flex: 1;
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
-  padding: 1rem 1.5rem;
-  color: var(--text-primary);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  color: var(--text-title);
+  font-size: 0.925rem;
+  transition: all var(--transition);
+  font-family: inherit;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--accent-pink);
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-bg);
 }
 
 .search-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .search-btn {
-  background: var(--gradient-secondary);
+  background: var(--color-primary);
   border: none;
-  border-radius: 12px;
-  padding: 1rem 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.75rem;
+  color: #fff;
+  font-size: 0.925rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition);
+  font-family: inherit;
 }
 
 .search-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
-}
-
-.btn-icon {
-  font-size: 1.2rem;
-}
-
-.btn-text {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: white;
+  background: #3D5BD9;
+  box-shadow: 0 4px 12px rgba(79, 110, 247, 0.3);
 }
 
 .results-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.2rem;
-  color: var(--accent-cyan);
-  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 1rem;
 }
 
 .results-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .result-card {
-  background: var(--bg-secondary);
-  border: var(--border-glow);
-  border-radius: 12px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: all var(--transition);
 }
 
 .result-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.6rem;
 }
 
 .result-score {
-  background: rgba(236, 72, 153, 0.2);
-  color: var(--accent-pink);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Space Mono', monospace;
 }
 
 .result-id {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .result-name {
-  font-size: 1.2rem;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 0.3rem;
 }
 
 .result-category {
-  color: var(--accent-purple);
-  font-size: 0.9rem;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
   margin-bottom: 0.5rem;
 }
 
 .result-desc {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.5;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -244,6 +264,8 @@ export default {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
 }
 
 .stat {
@@ -252,15 +274,22 @@ export default {
 
 .stat-label {
   display: block;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-bottom: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .stat-value {
   display: block;
-  color: var(--accent-cyan);
+  color: var(--text-title);
   font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.stat-value.price {
+  color: var(--color-orange);
 }
 
 .empty-state {
@@ -269,13 +298,33 @@ export default {
 }
 
 .empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  display: block;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
 }
 
 .empty-text {
   color: var(--text-secondary);
-  font-size: 1.2rem;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.empty-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.initial-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.initial-icon {
+  color: var(--border);
+  margin-bottom: 1rem;
+}
+
+.initial-text {
+  color: var(--text-muted);
+  font-size: 1rem;
 }
 </style>

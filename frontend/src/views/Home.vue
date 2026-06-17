@@ -1,29 +1,36 @@
 <template>
   <div class="home">
     <div class="page-header">
-      <h1 class="page-title">数据监控大屏</h1>
-      <p class="page-subtitle">实时掌握电商数据动态</p>
+      <div>
+        <h1 class="page-title">数据概览</h1>
+        <p class="page-subtitle">实时掌握电商数据动态</p>
+      </div>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card" v-for="stat in stats" :key="stat.label">
-        <div class="stat-icon">{{ stat.icon }}</div>
+        <div class="stat-icon-wrap" :style="{ background: stat.bgColor }">
+          <span class="stat-icon">{{ stat.icon }}</span>
+        </div>
         <div class="stat-info">
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
         </div>
-        <div class="stat-glow"></div>
       </div>
     </div>
 
     <div class="charts-grid">
       <div class="chart-card">
-        <h3 class="chart-title">品类分布</h3>
-        <div class="chart-container" ref="categoryChart"></div>
+        <div class="chart-header">
+          <h3 class="chart-title">品类分布</h3>
+        </div>
+        <div class="chart-body" ref="categoryChart"></div>
       </div>
       <div class="chart-card">
-        <h3 class="chart-title">爆款指数趋势</h3>
-        <div class="chart-container" ref="trendChart"></div>
+        <div class="chart-header">
+          <h3 class="chart-title">爆款指数趋势</h3>
+        </div>
+        <div class="chart-body" ref="trendChart"></div>
       </div>
     </div>
   </div>
@@ -33,17 +40,17 @@
 import * as echarts from 'echarts'
 import { getDashboardStats, getDashboardTrend } from '../api'
 
-const COLORS = ['#00f5ff', '#a855f7', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6']
+const COLORS = ['#4F6EF7', '#F97316', '#22C55E', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4']
 
 export default {
   name: 'Home',
   data() {
     return {
       stats: [
-        { icon: '📦', value: '0', label: '商品总数' },
-        { icon: '💬', value: '0', label: '评价总数' },
-        { icon: '🔥', value: '0', label: '爆款数量' },
-        { icon: '📈', value: '0', label: '品类数量' }
+        { icon: '📦', value: '0', label: '商品总数', bgColor: '#EEF1FE' },
+        { icon: '💬', value: '0', label: '评价总数', bgColor: '#ECFDF5' },
+        { icon: '🔥', value: '0', label: '爆款数量', bgColor: '#FFFBEB' },
+        { icon: '📊', value: '0', label: '品类数量', bgColor: '#FEF2F2' }
       ],
       categoryData: [],
       trendMonths: [],
@@ -71,7 +78,6 @@ export default {
           this.stats[2].value = data.hotProductsCount
           this.stats[3].value = Object.keys(data.categoryStats).length
 
-          // 动态生成饼图数据
           this.categoryData = Object.entries(data.categoryStats).map(([name, info], i) => ({
             value: info.count,
             name: name,
@@ -98,37 +104,37 @@ export default {
         backgroundColor: 'transparent',
         tooltip: {
           trigger: 'item',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: '#00f5ff',
-          textStyle: { color: '#e2e8f0' }
+          backgroundColor: '#fff',
+          borderColor: '#E8ECF1',
+          borderWidth: 1,
+          textStyle: { color: '#1A2138', fontSize: 13 },
+          shadowBlur: 10,
+          shadowColor: 'rgba(0,0,0,0.08)'
         },
         series: [{
           type: 'pie',
-          radius: ['40%', '70%'],
+          radius: ['45%', '72%'],
           center: ['50%', '50%'],
           itemStyle: {
-            borderRadius: 10,
-            borderColor: '#1a2332',
-            borderWidth: 2
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 3
           },
           label: {
             show: true,
-            color: '#e2e8f0',
-            fontSize: 12
+            color: '#4A5568',
+            fontSize: 12,
+            formatter: '{b}\n{d}%'
+          },
+          labelLine: {
+            lineStyle: { color: '#B0BEC5' }
           },
           emphasis: {
-            label: {
-              show: true,
-              fontSize: 14,
-              fontWeight: 'bold'
-            },
-            itemStyle: {
-              shadowBlur: 20,
-              shadowColor: 'rgba(0, 245, 255, 0.5)'
-            }
+            label: { fontSize: 14, fontWeight: '600' },
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.1)' }
           },
           data: this.categoryData.length > 0 ? this.categoryData : [
-            { value: 0, name: '暂无数据', itemStyle: { color: '#374151' } }
+            { value: 0, name: '暂无数据', itemStyle: { color: '#E8ECF1' } }
           ]
         }]
       }
@@ -141,48 +147,40 @@ export default {
         backgroundColor: 'transparent',
         tooltip: {
           trigger: 'axis',
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
-          borderColor: '#00f5ff',
-          textStyle: { color: '#e2e8f0' }
+          backgroundColor: '#fff',
+          borderColor: '#E8ECF1',
+          borderWidth: 1,
+          textStyle: { color: '#1A2138', fontSize: 13 },
+          shadowBlur: 10,
+          shadowColor: 'rgba(0,0,0,0.08)'
         },
         xAxis: {
           type: 'category',
           data: this.trendMonths.length > 0 ? this.trendMonths : ['暂无数据'],
-          axisLine: { lineStyle: { color: '#374151' } },
-          axisLabel: { color: '#94a3b8' }
+          axisLine: { lineStyle: { color: '#E8ECF1' } },
+          axisLabel: { color: '#8492A6', fontSize: 12 },
+          axisTick: { show: false }
         },
         yAxis: {
           type: 'value',
-          axisLine: { lineStyle: { color: '#374151' } },
-          axisLabel: { color: '#94a3b8' },
-          splitLine: { lineStyle: { color: 'rgba(55, 65, 81, 0.5)' } }
+          axisLine: { show: false },
+          axisLabel: { color: '#8492A6', fontSize: 12 },
+          splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } }
         },
+        grid: { top: 20, right: 20, bottom: 30, left: 50, containLabel: false },
         series: [{
           data: this.trendData.length > 0 ? this.trendData : [0],
           type: 'line',
           smooth: true,
           symbol: 'circle',
-          symbolSize: 10,
-          lineStyle: {
-            color: '#00f5ff',
-            width: 3,
-            shadowBlur: 10,
-            shadowColor: 'rgba(0, 245, 255, 0.5)'
-          },
-          itemStyle: {
-            color: '#00f5ff',
-            borderColor: '#0a0e17',
-            borderWidth: 2
-          },
+          symbolSize: 6,
+          lineStyle: { color: '#4F6EF7', width: 2.5 },
+          itemStyle: { color: '#4F6EF7', borderColor: '#fff', borderWidth: 2 },
           areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(0, 245, 255, 0.3)' },
-                { offset: 1, color: 'rgba(0, 245, 255, 0)' }
-              ]
-            }
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(79, 110, 247, 0.15)' },
+              { offset: 1, color: 'rgba(79, 110, 247, 0.01)' }
+            ])
           }
         }]
       }
@@ -191,147 +189,124 @@ export default {
     }
   },
   beforeUnmount() {
-    if (this.categoryChart) {
-      this.categoryChart.dispose()
-    }
-    if (this.trendChart) {
-      this.trendChart.dispose()
-    }
+    if (this.categoryChart) this.categoryChart.dispose()
+    if (this.trendChart) this.trendChart.dispose()
   }
 }
 </script>
 
 <style scoped>
 .home {
-  animation: fadeIn 0.5s ease;
+  animation: fadeIn 0.4s ease;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .page-header {
-  margin-bottom: 2rem;
-  text-align: center;
+  margin-bottom: 1.75rem;
 }
 
 .page-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 0.5rem;
+  color: var(--text-title);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
 }
 
 .page-subtitle {
   color: var(--text-secondary);
-  font-size: 1.1rem;
+  font-size: 0.925rem;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .stat-card {
-  background: var(--bg-card);
-  border: var(--border-glow);
-  border-radius: 16px;
-  padding: 1.5rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all var(--transition);
 }
 
 .stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--glow-cyan);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.stat-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .stat-icon {
-  font-size: 2.5rem;
-  z-index: 1;
-}
-
-.stat-info {
-  z-index: 1;
+  font-size: 1.5rem;
 }
 
 .stat-value {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 2rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 1.6rem;
   font-weight: 700;
-  color: var(--accent-cyan);
+  color: var(--text-title);
+  line-height: 1.2;
 }
 
 .stat-label {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.stat-glow {
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  background: var(--gradient-primary);
-  border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.3;
-  top: -30px;
-  right: -30px;
+  font-size: 0.825rem;
+  margin-top: 0.15rem;
 }
 
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .chart-card {
-  background: var(--bg-card);
-  border: var(--border-glow);
-  border-radius: 16px;
-  padding: 1.5rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chart-header {
+  padding: 1.25rem 1.25rem 0;
 }
 
 .chart-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.2rem;
-  color: var(--accent-cyan);
-  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-title);
 }
 
-.chart-container {
+.chart-body {
   height: 300px;
+  padding: 0.5rem;
 }
 
 @media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+  .stats-grid { grid-template-columns: 1fr; }
 }
 </style>

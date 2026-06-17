@@ -165,8 +165,18 @@ def compute_analysis(products, reviews, monthly_sales):
         cat = r['category']
         cs = category_stats.get(cat, {'total_sales': 1, 'total_reviews': 1, 'growth_min': 0, 'growth_max': 1})
 
-        # 销量分：品类内市场份额
-        sales_score = r['total_sales'] / cs['total_sales'] if cs['total_sales'] > 0 else 0
+        # 销量分：按绝对销量计算（0-1）
+        total_sales = r['total_sales']
+        if total_sales < 1000:
+            sales_score = 0.2
+        elif total_sales < 5000:
+            sales_score = 0.4
+        elif total_sales < 10000:
+            sales_score = 0.6
+        elif total_sales < 50000:
+            sales_score = 0.8
+        else:
+            sales_score = 1.0
 
         # 增长分：品类内min-max归一化
         g_range = cs['growth_max'] - cs['growth_min']
@@ -175,8 +185,18 @@ def compute_analysis(products, reviews, monthly_sales):
         # 评分分：1-5分映射到0-1
         rating_score = max(0, (r['avg_rating'] - 1) / 4) if r['avg_rating'] > 0 else 0.5
 
-        # 评价分：品类内评价份额
-        review_score = r['review_count'] / cs['total_reviews'] if cs['total_reviews'] > 0 else 0
+        # 评价分：按绝对评价数计算（0-1）
+        review_count = r['review_count']
+        if review_count < 10:
+            review_score = 0.2
+        elif review_count < 50:
+            review_score = 0.4
+        elif review_count < 100:
+            review_score = 0.6
+        elif review_count < 200:
+            review_score = 0.8
+        else:
+            review_score = 1.0
 
         # 归一化爆款指数（0-1），各维度得分也保留供前端展示
         r['hot_score'] = round(

@@ -17,7 +17,7 @@
     <div class="charts-section">
       <div class="chart-row">
         <div class="chart-card">
-          <h3 class="chart-title">品类爆款数量分布</h3>
+          <h3 class="chart-title">爆款指数分布</h3>
           <div ref="categoryBarChart" class="chart-container"></div>
         </div>
         <div class="chart-card">
@@ -266,10 +266,12 @@ export default {
   methods: {
     async loadAllData() {
       try {
-        const res = await getHotProducts({ limit: 100, page: 1 })
+        const res = await getHotProducts({ limit: 2000, page: 1 })
         if (res.data.code === 200) {
-          this.chartProducts = res.data.data.products || []
-          this.total = res.data.data.total || 0
+          const allProducts = res.data.data.products || []
+          // 筛选每个品类Top 20%
+          this.chartProducts = this.filterTopByCategory(allProducts, 0.2)
+          this.total = this.chartProducts.length
           this.updatePageProducts()
           this.$nextTick(() => {
             this.initCharts()
@@ -278,6 +280,25 @@ export default {
       } catch (error) {
         console.error('加载全量数据失败:', error)
       }
+    },
+    filterTopByCategory(products, ratio) {
+      // 按品类分组
+      const categoryProducts = {}
+      products.forEach(p => {
+        const cat = p.category
+        if (!categoryProducts[cat]) categoryProducts[cat] = []
+        categoryProducts[cat].push(p)
+      })
+      // 每个品类取Top ratio
+      const result = []
+      Object.values(categoryProducts).forEach(prods => {
+        prods.sort((a, b) => (b.hot_score || 0) - (a.hot_score || 0))
+        const topCount = Math.max(1, Math.floor(prods.length * ratio))
+        result.push(...prods.slice(0, topCount))
+      })
+      // 按hot_score排序
+      result.sort((a, b) => (b.hot_score || 0) - (a.hot_score || 0))
+      return result
     },
     updatePageProducts() {
       const start = (this.currentPage - 1) * this.pageSize
@@ -290,14 +311,16 @@ export default {
     },
     async filterAndRender() {
       try {
-        const params = { limit: 100, page: 1 }
+        const params = { limit: 2000, page: 1 }
         if (this.selectedCategory) {
           params.category = this.selectedCategory
         }
         const res = await getHotProducts(params)
         if (res.data.code === 200) {
-          this.chartProducts = res.data.data.products || []
-          this.total = res.data.data.total || 0
+          const allProducts = res.data.data.products || []
+          // 筛选每个品类Top 20%
+          this.chartProducts = this.filterTopByCategory(allProducts, 0.2)
+          this.total = this.chartProducts.length
           this.updatePageProducts()
           this.$nextTick(() => {
             this.renderCharts()
@@ -399,24 +422,31 @@ export default {
       const chart = echarts.init(dom)
       this.chartInstances[0] = chart
 
-      const categoryCount = {}
+      // 按爆款指数区间统计
+      const ranges = ['0-0.1', '0.1-0.15', '0.15-0.2', '0.2-0.25', '0.25+']
+      const counts = [0, 0, 0, 0, 0]
       this.chartProducts.forEach(p => {
-        categoryCount[p.category] = (categoryCount[p.category] || 0) + 1
+        const score = p.hot_score || 0
+        if (score < 0.1) counts[0]++
+        else if (score < 0.15) counts[1]++
+        else if (score < 0.2) counts[2]++
+        else if (score < 0.25) counts[3]++
+        else counts[4]++
       })
-      const sortedCategories = Object.keys(categoryCount).sort((a, b) => categoryCount[b] - categoryCount[a])
-      const counts = sortedCategories.map(c => categoryCount[c])
 
       chart.setOption({
         ...this.getBaseOption(),
         tooltip: { ...this.getTooltip(), trigger: 'axis' },
         xAxis: {
-          type: 'category', data: sortedCategories,
-          axisLabel: { color: '#8492A6', fontSize: 12 },
+          type: 'category', data: ranges,
+          name: '爆款指数区间',
+          nameTextStyle: { color: '#8492A6', fontSize: 12 },
+          axisLabel: { color: '#8492A6', fontSize: 11 },
           axisLine: { lineStyle: { color: '#E8ECF1' } },
           axisTick: { show: false }
         },
         yAxis: {
-          type: 'value', name: '数量',
+          type: 'value', name: '商品数量',
           nameTextStyle: { color: '#8492A6', fontSize: 12 },
           axisLabel: { color: '#8492A6' },
           splitLine: { lineStyle: { color: '#F0F2F5', type: 'dashed' } },

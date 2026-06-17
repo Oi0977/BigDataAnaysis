@@ -25,12 +25,12 @@ from datetime import datetime
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, count, avg, sum as spark_sum, when, lit,
+    col, count, avg, sum as spark_sum, max as spark_max, when, lit,
     trim, collect_list, udf, desc
 )
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType,
-    ArrayType, IntegerType
+    ArrayType, IntegerType, LongType
 )
 
 # ============================================================
@@ -39,8 +39,7 @@ from pyspark.sql.types import (
 HDFS_CLEANED_BASE = "hdfs:///douyin/cleaned"
 HDFS_PROCESSED_BASE = "hdfs:///douyin/processed"
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOCAL_MOCK_DIR = os.path.join(PROJECT_ROOT, "mock-data")
+LOCAL_MOCK_DIR = os.environ.get("LOCAL_MOCK_DIR", "/data/mock-data")
 
 
 def read_local_json(spark, filepath, label=""):
@@ -219,7 +218,7 @@ def compute_sales_metrics(spark: SparkSession, sales_df):
 
     # 3. 获取最近两个月的月份名（按降序排列取前2）
     from pyspark.sql.window import Window
-    from pyspark.sql.functions import row_number, max as spark_max
+    from pyspark.sql.functions import row_number
 
     # 获取数据中最新的月份
     max_month = sales_with_month.agg(spark_max("month")).collect()[0][0]
@@ -451,7 +450,6 @@ def main():
         .appName("DouyinProductAnalysis") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
-        .config("spark.driver.extraJavaOptions", "-Djava.security.manager=allow") \
         .getOrCreate()
 
     print("=" * 60)
@@ -513,7 +511,7 @@ def main():
         # ============================================================
         final_result = analysis_result.join(top_tags_df, "product_id", "left") \
             .withColumn("top_tags",
-                        when(col("top_tags").isNull(), lit("[]"))
+                        when(col("top_tags").isNull(), lit([]))
                         .otherwise(col("top_tags")))
 
         # ============================================================

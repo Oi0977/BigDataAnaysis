@@ -38,8 +38,7 @@ from pyspark.sql.types import (
 HDFS_CLEANED_BASE = "hdfs:///douyin/cleaned"
 HDFS_PROCESSED_BASE = "hdfs:///douyin/processed"
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOCAL_MOCK_DIR = os.path.join(PROJECT_ROOT, "mock-data")
+LOCAL_MOCK_DIR = os.environ.get("LOCAL_MOCK_DIR", "/data/mock-data")
 
 
 def read_local_json(spark, filepath, label=""):
@@ -270,7 +269,6 @@ def main():
         .appName("DouyinTrendAggregation") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
-        .config("spark.driver.extraJavaOptions", "-Djava.security.manager=allow") \
         .getOrCreate()
 
     print("=" * 60)
@@ -338,9 +336,9 @@ def main():
                 "sales_trend": json.dumps(r["sales_trend"]),
                 "amount_trend": json.dumps(r["amount_trend"]),
                 "monthly_detail": json.dumps(r["monthly_detail"], ensure_ascii=False),
-                "total_sales": r["total_sales"],
-                "total_amount": r["total_amount"],
-                "avg_monthly_sales": r["avg_monthly_sales"],
+                "total_sales": float(r["total_sales"]),
+                "total_amount": float(r["total_amount"]),
+                "avg_monthly_sales": float(r["avg_monthly_sales"]),
             })
 
         product_trend_df = spark.createDataFrame(product_trend_rows, product_trend_schema)
@@ -365,7 +363,7 @@ def main():
                 "category": cat,
                 "months": json.dumps(data["months"]),
                 "monthly_sales": json.dumps(data["monthly_sales"]),
-                "total_sales": data["total_sales"],
+                "total_sales": float(data["total_sales"]),
             })
 
         category_trend_df = spark.createDataFrame(category_trend_rows, category_trend_schema)

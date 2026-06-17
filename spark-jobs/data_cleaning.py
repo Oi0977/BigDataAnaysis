@@ -26,9 +26,8 @@ from pyspark.sql.types import DoubleType
 HDFS_RAW_BASE = "hdfs:///douyin/raw"
 HDFS_CLEANED_BASE = "hdfs:///douyin/cleaned"
 
-# 本地回退路径（项目根目录下的 mock-data）
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOCAL_MOCK_DIR = os.path.join(PROJECT_ROOT, "mock-data")
+# 本地回退路径（Docker volume 挂载到 /data/mock-data）
+LOCAL_MOCK_DIR = os.environ.get("LOCAL_MOCK_DIR", "/data/mock-data")
 
 
 def create_spark_session() -> SparkSession:
@@ -38,7 +37,6 @@ def create_spark_session() -> SparkSession:
         .appName("DouyinDataCleaning") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
-        .config("spark.driver.extraJavaOptions", "-Djava.security.manager=allow") \
         .getOrCreate()
 
 
@@ -58,7 +56,7 @@ def read_data(spark: SparkSession, hdfs_path: str, local_path: str, label: str):
     try:
         # 尝试从HDFS读取
         print(f"  [HDFS] 尝试从 {hdfs_path} 读取 {label}...")
-        df = spark.read.json(hdfs_path)
+        df = spark.read.option("multiLine", "true").json(hdfs_path)
         count = df.count()
         print(f"  [HDFS] 成功读取 {label}: {count} 条记录")
         return df

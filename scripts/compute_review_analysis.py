@@ -13,7 +13,6 @@ from collections import Counter, defaultdict
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOCK_DIR = os.path.join(PROJECT_ROOT, "mock-data")
-os.environ["RUN_MODE"] = "local"
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -371,8 +370,9 @@ def write_to_hbase(product_results):
     """写入HBase"""
     try:
         import happybase
-        print("\n[HBase] 连接 HBase...")
-        conn = happybase.Connection('localhost', port=9090)
+        from backend.app.config import settings
+        print(f"\n[HBase] 连接 HBase ({settings.hbase_host}:{settings.hbase_port})...")
+        conn = happybase.Connection(settings.hbase_host, port=settings.hbase_port)
         existing = conn.tables()
         if b'review_analysis' not in existing:
             conn.create_table('review_analysis', {'stats': dict(max_versions=1)})

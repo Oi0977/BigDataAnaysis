@@ -38,8 +38,7 @@ from pyspark.sql.types import (
 HDFS_CLEANED_BASE = "hdfs:///douyin/cleaned"
 HDFS_PROCESSED_BASE = "hdfs:///douyin/processed"
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOCAL_MOCK_DIR = os.path.join(PROJECT_ROOT, "mock-data")
+LOCAL_MOCK_DIR = os.environ.get("LOCAL_MOCK_DIR", "/data/mock-data")
 
 
 def read_local_json(spark, filepath, label=""):
@@ -289,7 +288,6 @@ def main():
         .appName("DouyinNLPAnalysis") \
         .master(master_url) \
         .config("spark.sql.warehouse.dir", "hdfs:///user/hive/warehouse") \
-        .config("spark.driver.extraJavaOptions", "-Djava.security.manager=allow") \
         .getOrCreate()
 
     print("=" * 60)

@@ -17,8 +17,22 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from backend.app.core.hbase_service import hbase_service
-from backend.app.core.es_service import es_service
+# 直接使用环境变量连接HBase和ES
+import happybase
+from elasticsearch import Elasticsearch
+
+
+def get_hbase_connection():
+    """获取HBase连接"""
+    hbase_host = os.getenv('HBASE_HOST', 'hbase-master')
+    hbase_port = int(os.getenv('HBASE_PORT', '9090'))
+    return happybase.Connection(hbase_host, hbase_port)
+
+
+def get_es_client():
+    """获取Elasticsearch客户端"""
+    es_host = os.getenv('ELASTICSEARCH_HOST', 'elasticsearch:9200')
+    return Elasticsearch([f"http://{es_host}"])
 
 
 def load_json_file(filename: str) -> list:
@@ -39,18 +53,40 @@ def init_hbase(products: list, reviews: list, monthly_sales: list):
     """初始化HBase数据"""
     print("\n=== 初始化 HBase ===")
 
+    connection = get_hbase_connection()
+
     # 创建表
     try:
-        hbase_service.create_tables()
+        # 检查表是否存在，如果不存在则创建
+        tables = connection.tables()
+        table_names = [t.decode() for t in tables]
+
+        if 'product' not in table_names:
+            connection.create_table('product', {'info': dict(max_versions=3)})
+        if 'review' not in table_names:
+            connection.create_table('review', {'info': dict(max_versions=3)})
+        if 'monthly_sales' not in table_names:
+            connection.create_table('monthly_sales', {'data': dict(max_versions=1)})
+
         print("表创建完成")
     except Exception as e:
         print(f"创建表失败: {e}")
 
     # 插入商品基础信息
+    product_table = connection.table('product')
     success = fail = 0
     for product in products:
         try:
-            hbase_service.insert_product(product)
+            rowkey = str(product['product_id'])
+            product_table.put(rowkey.encode(), {
+                'info:name': product.get('name', '').encode(),
+                'info:category': product.get('category', '').encode(),
+                'info:brand': product.get('brand', '').encode(),
+                'info:price': str(product.get('price', 0)).encode(),
+                'info:description': product.get('description', '').encode(),
+                'info:shop_name': product.get('shop_name', '').encode(),
+                'info:create_time': product.get('create_time', '').encode(),
+            })
             success += 1
         except Exception as e:
             fail += 1
@@ -58,10 +94,17 @@ def init_hbase(products: list, reviews: list, monthly_sales: list):
     print(f"商品插入完成: 成功 {success}, 失败 {fail}")
 
     # 插入评价数据
+    review_table = connection.table('review')
     success = fail = 0
     for review in reviews:
         try:
-            hbase_service.insert_review(review)
+            rowkey = str(review['review_id'])
+            review_table.put(rowkey.encode(), {
+                'info:product_id': str(review.get('product_id', '')).encode(),
+                'info:content': review.get('content', '').encode(),
+                'info:rating': str(review.get('rating', 0)).encode(),
+                'info:create_time': review.get('create_time', '').encode(),
+            })
             success += 1
         except Exception as e:
             fail += 1
@@ -71,10 +114,10 @@ def init_hbase(products: list, reviews: list, monthly_sales: list):
     # 插入日销量数据（批量写入，不逐条调用）
     if monthly_sales:
         print("批量写入日销量数据...")
-        table = hbase_service.connection.table('monthly_sales')
+        sales_table = connection.table('monthly_sales')
         batch_size = 500
         success = fail = 0
-        with table.batch(batch_size=batch_size) as b:
+        with sales_table.batch(batch_size=batch_size) as b:
             for s in monthly_sales:
                 rowkey = f"{s['product_id']}_{s['date']}"
                 b.put(rowkey.encode(), {
@@ -89,16 +132,45 @@ def init_elasticsearch(products: list):
     """初始化Elasticsearch数据"""
     print("\n=== 初始化 Elasticsearch ===")
 
+    es = get_es_client()
+    index_name = "products"
+
     try:
-        es_service.create_index()
-        print("索引创建完成")
+        # 创建索引
+        if not es.indices.exists(index=index_name):
+            es.indices.create(
+                index=index_name,
+                body={
+                    "mappings": {
+                        "properties": {
+                            "product_id": {"type": "keyword"},
+                            "name": {"type": "text", "analyzer": "ik_max_word"},
+                            "category": {"type": "keyword"},
+                            "brand": {"type": "keyword"},
+                            "price": {"type": "float"},
+                            "description": {"type": "text", "analyzer": "ik_max_word"},
+                            "shop_name": {"type": "keyword"},
+                        }
+                    }
+                }
+            )
+            print("索引创建完成")
     except Exception as e:
         print(f"创建索引失败: {e}")
 
     success = fail = 0
     for product in products:
         try:
-            es_service.index_product(product)
+            doc = {
+                "product_id": str(product['product_id']),
+                "name": product.get('name', ''),
+                "category": product.get('category', ''),
+                "brand": product.get('brand', ''),
+                "price": product.get('price', 0),
+                "description": product.get('description', ''),
+                "shop_name": product.get('shop_name', ''),
+            }
+            es.index(index=index_name, id=str(product['product_id']), body=doc)
             success += 1
         except Exception as e:
             fail += 1
@@ -108,7 +180,7 @@ def init_elasticsearch(products: list):
 
 def main():
     print("=" * 50)
-    print("抖音电商竞品智能分析 - 数据初始化")
+    print("电商数据洞察平台 - 数据初始化")
     print("=" * 50)
 
     # 加载数据
@@ -124,12 +196,15 @@ def main():
     print(f"加载评价数据: {len(reviews)} 条")
     print(f"加载销量数据: {len(monthly_sales)} 条")
 
+    has_error = False
+
     # 初始化 HBase
     try:
         init_hbase(products, reviews, monthly_sales)
     except Exception as e:
         print(f"HBase 初始化失败: {e}")
         print("请确保 HBase 服务已启动")
+        has_error = True
 
     # 初始化 Elasticsearch
     try:
@@ -137,11 +212,19 @@ def main():
     except Exception as e:
         print(f"Elasticsearch 初始化失败: {e}")
         print("请确保 Elasticsearch 服务已启动")
+        has_error = True
 
     print("\n" + "=" * 50)
-    print("数据初始化完成!")
+    if has_error:
+        print("数据初始化完成（部分失败）")
+    else:
+        print("数据初始化完成!")
     print("注意: 商品分析指标(hot_score等)需要运行Spark作业后才会写入HBase")
     print("=" * 50)
+
+    # 如果有错误，返回非零退出码
+    if has_error:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -41,6 +41,36 @@ with DAG(
     # 开始标记
     start = EmptyOperator(task_id='start')
 
+    # ==================== 阶段0: 健康检查 ====================
+    check_services = BashOperator(
+        task_id='check_services',
+        bash_command='''
+echo "检查 HBase 服务..."
+for i in {1..30}; do
+    if docker exec hbase-master hbase shell -e "status" 2>/dev/null | grep -q "1 active master"; then
+        echo "HBase 服务已就绪"
+        break
+    fi
+    echo "等待 HBase 启动... ($i/30)"
+    sleep 10
+done
+
+echo "检查 Elasticsearch 服务..."
+for i in {1..30}; do
+    if curl -sf http://localhost:9200/_cluster/health >/dev/null 2>&1; then
+        echo "Elasticsearch 服务已就绪"
+        break
+    fi
+    echo "等待 Elasticsearch 启动... ($i/30)"
+    sleep 10
+done
+
+echo "服务检查完成"
+''',
+        doc='检查HBase和Elasticsearch服务是否就绪',
+        execution_timeout=timedelta(minutes=10),
+    )
+
     # ==================== 阶段1: 数据生成 ====================
     generate_products = BashOperator(
         task_id='generate_products',
@@ -141,8 +171,11 @@ with DAG(
     finish = EmptyOperator(task_id='finish')
 
     # ==================== 任务依赖关系 ====================
-    # 阶段1: 并行生成数据
-    start >> [generate_products, generate_reviews, generate_sales]
+    # 阶段0: 健康检查
+    start >> check_services
+
+    # 阶段1: 并行生成数据（依赖健康检查完成）
+    check_services >> [generate_products, generate_reviews, generate_sales]
 
     # 阶段2: 初始化存储（依赖所有数据生成完成）
     [generate_products, generate_reviews, generate_sales] >> init_hbase_es

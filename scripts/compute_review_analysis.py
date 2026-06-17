@@ -370,9 +370,10 @@ def write_to_hbase(product_results):
     """写入HBase"""
     try:
         import happybase
-        from backend.app.config import settings
-        print(f"\n[HBase] 连接 HBase ({settings.hbase_host}:{settings.hbase_port})...")
-        conn = happybase.Connection(settings.hbase_host, port=settings.hbase_port)
+        hbase_host = os.getenv('HBASE_HOST', 'hbase-master')
+        hbase_port = int(os.getenv('HBASE_PORT', '9090'))
+        print(f"\n[HBase] 连接 HBase ({hbase_host}:{hbase_port})...")
+        conn = happybase.Connection(hbase_host, port=hbase_port)
         existing = conn.tables()
         if b'review_analysis' not in existing:
             conn.create_table('review_analysis', {'stats': dict(max_versions=1)})

@@ -31,6 +31,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
     - ${AIRFLOW_PROJ_DIR:-.}/mock-data:/opt/airflow/mock-data
     - ${AIRFLOW_PROJ_DIR:-.}/spark-jobs:/opt/airflow/spark-jobs
+    - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -370,6 +371,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    restart: always
     networks:
       - bigdata-net
 
@@ -385,6 +387,7 @@ services:
       - HBASE_MASTER_HOST=hbase-master
     depends_on:
       - hbase-master
+    restart: always
     networks:
       - bigdata-net
 
@@ -420,6 +423,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    restart: always
     networks:
       - bigdata-net
 

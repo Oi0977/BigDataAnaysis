@@ -155,28 +155,20 @@ def compute_analysis(products, reviews, monthly_sales):
     for r in results:
         cat = r['category']
         if cat not in category_stats:
-            category_stats[cat] = {'total_sales': 0, 'total_reviews': 0, 'growth_min': float('inf'), 'growth_max': float('-inf')}
+            category_stats[cat] = {'total_sales': 0, 'total_reviews': 0, 'growth_min': float('inf'), 'growth_max': float('-inf'), 'max_sales': 0, 'max_reviews': 0}
         category_stats[cat]['total_sales'] += r['total_sales']
         category_stats[cat]['total_reviews'] += r['review_count']
         category_stats[cat]['growth_min'] = min(category_stats[cat]['growth_min'], r['weekly_growth'])
         category_stats[cat]['growth_max'] = max(category_stats[cat]['growth_max'], r['weekly_growth'])
+        category_stats[cat]['max_sales'] = max(category_stats[cat]['max_sales'], r['total_sales'])
+        category_stats[cat]['max_reviews'] = max(category_stats[cat]['max_reviews'], r['review_count'])
 
     for r in results:
         cat = r['category']
-        cs = category_stats.get(cat, {'total_sales': 1, 'total_reviews': 1, 'growth_min': 0, 'growth_max': 1})
+        cs = category_stats.get(cat, {'total_sales': 1, 'total_reviews': 1, 'growth_min': 0, 'growth_max': 1, 'max_sales': 1, 'max_reviews': 1})
 
-        # 销量分：按绝对销量计算（0-1）
-        total_sales = r['total_sales']
-        if total_sales < 1000:
-            sales_score = 0.2
-        elif total_sales < 5000:
-            sales_score = 0.4
-        elif total_sales < 10000:
-            sales_score = 0.6
-        elif total_sales < 50000:
-            sales_score = 0.8
-        else:
-            sales_score = 1.0
+        # 销量分：品类内销量占比（值/最大值）
+        sales_score = r['total_sales'] / cs['max_sales'] if cs['max_sales'] > 0 else 0
 
         # 增长分：品类内min-max归一化
         g_range = cs['growth_max'] - cs['growth_min']
@@ -185,18 +177,8 @@ def compute_analysis(products, reviews, monthly_sales):
         # 评分分：1-5分映射到0-1
         rating_score = max(0, (r['avg_rating'] - 1) / 4) if r['avg_rating'] > 0 else 0.5
 
-        # 评价分：按绝对评价数计算（0-1）
-        review_count = r['review_count']
-        if review_count < 10:
-            review_score = 0.2
-        elif review_count < 50:
-            review_score = 0.4
-        elif review_count < 100:
-            review_score = 0.6
-        elif review_count < 200:
-            review_score = 0.8
-        else:
-            review_score = 1.0
+        # 评价分：品类内评价数占比（值/最大值）
+        review_score = r['review_count'] / cs['max_reviews'] if cs['max_reviews'] > 0 else 0
 
         # 归一化爆款指数（0-1），各维度得分也保留供前端展示
         r['hot_score'] = round(
@@ -216,9 +198,10 @@ def write_to_hbase(results):
     """将分析结果写入HBase"""
     try:
         import happybase
-        from backend.app.config import settings
-        print(f"\n[HBase] 连接 HBase ({settings.hbase_host}:{settings.hbase_port})...")
-        conn = happybase.Connection(settings.hbase_host, port=settings.hbase_port)
+        hbase_host = os.getenv('HBASE_HOST', 'hbase-master')
+        hbase_port = int(os.getenv('HBASE_PORT', '9090'))
+        print(f"\n[HBase] 连接 HBase ({hbase_host}:{hbase_port})...")
+        conn = happybase.Connection(hbase_host, port=hbase_port)
 
         # 确保表存在
         existing = conn.tables()
